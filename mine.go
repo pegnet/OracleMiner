@@ -67,6 +67,7 @@ func (m *Mine) Mine(opr []byte) {
 				if m.BestDifficulty == 0 || m.BestDifficulty > d {
 					m.BestDifficulty = d
 					m.BestNonce = append(m.BestNonce[:0], nonceOpr[:32]...)
+					m.BestHash=append(m.BestHash[:0],try...)
 				}
 			}
 

@@ -22,6 +22,7 @@ func main() {
 		fmt.Printf("%30s %x\n", "mined the OPR", opr[:32])
 		fmt.Printf("%30s %x\n", "difficulty", miner.OprHash)
 		fmt.Printf("%30s %x\n", "nonce", miner.BestNonce)
+		fmt.Printf("%30s %x\n", "best hash", miner.BestHash)
 		fmt.Printf("%30s %x\n", "difficulty", miner.BestDifficulty)
 		fmt.Println()
 	}
