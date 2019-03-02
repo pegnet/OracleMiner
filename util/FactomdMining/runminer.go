@@ -3,19 +3,15 @@ package main
 import (
 	"fmt"
 	"github.com/FactomProject/factom"
-	"net/http/httptest"
-	"net/http"
+
 )
+
+
+
 
 func main() {
 
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-	}))
-	defer ts.Close()
-
-	url := ts.URL[7:]
-	factom.SetFactomdServer(url)
+	factom.SetFactomdServer("localhost:8088")
 
 	Leaderheight,
 		Directoryblockheight,
@@ -46,4 +42,11 @@ func main() {
 	a,b,_,_,_,_,_,_ := factom.GetProperties()
 	fmt.Println(a,b)
 	print("ha")
+
+		r, err := factom.GetRate()
+		if err != nil {
+			fmt.Println("ERROR:", err)
+		}
+		fmt.Println(r)
+
 }

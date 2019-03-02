@@ -74,3 +74,12 @@ func (m *Mine) Mine(hash hashFunction, opr []byte) {
 		}
 	}
 }
+
+
+const (
+	startofblock
+)
+
+func (m *Mine) Events() chan int {
+
+}

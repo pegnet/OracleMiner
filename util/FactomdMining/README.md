@@ -1,6 +1,7 @@
-# RunMiner2
+# FactomdMining
 
-This code assumes a running factomd node.  Defaults to localhost. 
+This code assumes a running factomd node.  Defaults to localhost:8088 but could be pointed 
+at any running factomd node.
 
 This code creates a fake OPR record, and spins up a specified number of miner 
 processes to mine that OPR record. 
