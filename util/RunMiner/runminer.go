@@ -12,8 +12,8 @@ import (
 func main() {
 
 	// Constants to control this example mining process.
-	const NumberMiners = 5        // Number of mining processes to launch
-	blocktime := 10 * time.Second // blocktime to mine
+	const NumberMiners = 5       // Number of mining processes to launch
+	blocktime := 1 * time.Second // blocktime to mine
 
 	var miners [NumberMiners]*OracleMiner.Mine
 

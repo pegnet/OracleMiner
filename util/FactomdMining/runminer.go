@@ -1,16 +1,7 @@
 package main
 
-import (
-	"fmt"
-	"github.com/FactomProject/factom"
-
-)
-
-
-
-
 func main() {
-
+/*
 	factom.SetFactomdServer("localhost:8088")
 
 	Leaderheight,
@@ -23,8 +14,7 @@ func main() {
 		Stalldetected,
 		Faulttimeout,
 		Roundtimeout,
-		err :=
-		factom.GetCurrentMinute()
+		err := factom.GetCurrentMinute()
 
 	if err != nil {
 		fmt.Println(err.Error())
@@ -37,16 +27,14 @@ func main() {
 
 	fmt.Printf("Block %d Minute %d Currentblockstarttime %d\n", Directoryblockheight, Minute, Currentblockstarttime)
 
-
-
-	a,b,_,_,_,_,_,_ := factom.GetProperties()
-	fmt.Println(a,b)
+	a, b, _, _, _, _, _, _ := factom.GetProperties()
+	fmt.Println(a, b)
 	print("ha")
 
-		r, err := factom.GetRate()
-		if err != nil {
-			fmt.Println("ERROR:", err)
-		}
-		fmt.Println(r)
-
+	r, err := factom.GetRate()
+	if err != nil {
+		fmt.Println("ERROR:", err)
+	}
+	fmt.Println(r)
+*/
 }

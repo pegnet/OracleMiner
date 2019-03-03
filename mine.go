@@ -2,18 +2,18 @@ package OracleMiner
 
 import (
 	"github.com/FactomProject/factomd/common/primitives/random"
-	"github.com/pegnet/LXR256"
+	"github.com/PaulSnow/LXR256"
 )
 
 type Mine struct {
-	Finished       bool        // Miner sets Finished with the process is killed.
-	Control        chan int    // sending any int to the Mine will stop mining
-	OPR            []byte      // The oracle Record that we were mining
-	OprHash        []byte      // The hash of the oracle record
-	BestDifficulty uint64      // Highest Difference Found
-	BestNonce      []byte      // The Nonce that produced the bestDifference
-	BestHash       []byte      // The best hash we found (to check the Best Difficulty against)
-	Hashcnt        int         // Count of hash rounds performed.
+	Finished       bool     // Miner sets Finished with the process is killed.
+	Control        chan int // sending any int to the Mine will stop mining
+	OPR            []byte   // The oracle Record that we were mining
+	OprHash        []byte   // The hash of the oracle record
+	BestDifficulty uint64   // Highest Difference Found
+	BestNonce      []byte   // The Nonce that produced the bestDifference
+	BestHash       []byte   // The best hash we found (to check the Best Difficulty against)
+	Hashcnt        int      // Count of hash rounds performed.
 }
 
 func GetFirstNonce() []byte {
@@ -75,11 +75,19 @@ func (m *Mine) Mine(hash hashFunction, opr []byte) {
 	}
 }
 
-
 const (
-	startofblock
+	startofblock = iota
+	blocktime
+	minute8
+	faulting
 )
 
-func (m *Mine) Events() chan int {
+type FactomEvent struct {
+	Type  int
+	Value int
+	Msg   string
+}
+
+func (m *Mine) Events(event chan FactomEvent) {
 
 }
