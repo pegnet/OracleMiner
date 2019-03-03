@@ -6,6 +6,7 @@ import (
 )
 
 type OPR struct {
+	ID                 int        // not part of OPR -an index for debugging
 	Grade              float64    // not part of OPR -grade for this OPR relative to the average
 	Difficulty         uint64     // not part of OPR -The difficulty of the given nonce
 	Designators        [20]string // not part of OPR -(USD, YEN, etc.) pulled from PegomChain
@@ -43,11 +44,12 @@ func Avg(list []*OPR) (avg [20]float64) {
 }
 
 // Given the average answers across a set of tokens, grade the opr
-func CalculateGrade(avg [20]float64, opr *OPR) {
+func CalculateGrade(avg [20]float64, opr *OPR) float64 {
 	for i, v := range opr.Tokens {
 		d := float64(v)/100000000 - avg[i]    // compute the difference from the average
-		opr.Grade = opr.Grade + d*d // the grade is the sum of the squares of the differences
+		opr.Grade = opr.Grade + d*d*d*d // the grade is the sum of the squares of the differences
 	}
+	return opr.Grade
 }
 
 // Given a list of OPR, figure out which 10 should be paid, and in what order
@@ -90,10 +92,6 @@ func grade(list []*OPR) (tobepaid []*OPR, sortedlist []*OPR) {
 		for j := 0; j < i; j++ {
 			CalculateGrade(avg, list[j])
 		}
-		for j := 0; j< len(avg); j++ {
-			fmt.Println(j,int64(avg[j]),list[0].Tokens[j], avg[j]-float64(list[0].Tokens[j]))
-		}
-		fmt.Println()
 		// bubble sort the worst grade to the end of the list. Note that this is nearly sorted data, so
 		// a bubble sort with a short circuit is pretty darn good sort.
 		for j := 0; j < i-1; j++ {
@@ -104,7 +102,7 @@ func grade(list []*OPR) (tobepaid []*OPR, sortedlist []*OPR) {
 					cont = true                             // any swap means we continue to loop
 				} else if list[k].Grade == list[k+1].Grade { // break ties with PoW.  Where data is being shared
 					if list[k].Difficulty > list[k+1].Difficulty { // we will have ties.
-						list[k], list[k+1] = list[k+1], list[k]
+						//list[k], list[k+1] = list[k+1], list[k]
 						cont = true // any swap means we continue to loop
 					}
 				}
