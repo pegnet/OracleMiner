@@ -2,7 +2,7 @@ package OracleMiner
 
 import (
 	"github.com/FactomProject/factomd/common/primitives/random"
-	"github.com/PaulSnow/LXR256"
+	"github.com/pegnet/LXR256"
 )
 
 type Mine struct {
