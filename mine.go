@@ -5,8 +5,10 @@ import (
 	"github.com/pegnet/LXR256"
 )
 
+type hashFunction func([]byte) []byte
+
 type Mine struct {
-	Finished       bool     // Miner sets Finished with the process is killed.
+	Response       chan int // Returns 0 when the miner stops
 	Control        chan int // sending any int to the Mine will stop mining
 	OPR            []byte   // The oracle Record that we were mining
 	OprHash        []byte   // The hash of the oracle record
@@ -14,8 +16,51 @@ type Mine struct {
 	BestNonce      []byte   // The Nonce that produced the bestDifference
 	BestHash       []byte   // The best hash we found (to check the Best Difficulty against)
 	Hashcnt        int      // Count of hash rounds performed.
+	HashFunction   hashFunction // The Hash function we will be using to mine
 }
 
+func (m *Mine) Init(){
+	m.BestDifficulty = 0
+	m.Hashcnt = 0
+	m.Response = make(chan int, 10)
+	m.Control = make(chan int, 10)
+	m.OPR = m.OPR[:0]
+	m.OprHash = m.OPR[:0]
+	m.BestNonce = m.OPR[:0]
+	m.BestHash = m.OPR[:0]
+
+	// create an LXRHash function for the Lookup XoR hash.
+	lx := new(lxr.LXRHash)
+	lx.Init()
+	m.HashFunction = func(src []byte) []byte {
+		return lx.Hash(src)
+	}
+}
+
+// Start mining on a given OPR
+func (m *Mine) Start(opr [] byte) (){
+	// Make sure the miner is stopped.
+	if m.Response != nil {
+		m.Stop()
+	}
+	m.Init()
+	go m.Mine(opr)
+}
+
+func (m *Mine) Stop() {
+	// Only stop a running miner
+	if m.Response == nil {
+		// Signal the mining process to stop
+		m.Control <- 0
+		// Wait for it to stop
+		<-m.Response
+		// Clear the response channel to indicate the miner is stopped.
+		m.Response = nil
+	}
+}
+
+
+// Create a nonce of eight bytes of zeros followed by 24 bytes of random values
 func GetFirstNonce() []byte {
 	// Start with 8 bytes of zero
 	nonce := []byte{0, 0, 0, 0, 0, 0, 0, 0}
@@ -24,13 +69,11 @@ func GetFirstNonce() []byte {
 	return nonce
 }
 
-type hashFunction func([]byte) []byte
-
 // Mine a given Oracle Price Record (OPR)
-func (m *Mine) Mine(hash hashFunction, opr []byte) {
+func (m *Mine) Mine( opr []byte) {
 
 	m.OPR = opr
-	m.OprHash = hash(opr)
+	m.OprHash = m.HashFunction(opr)
 	m.Hashcnt = 0
 
 	// Clear out some variables in case the Mine struct is being reused
@@ -47,7 +90,7 @@ func (m *Mine) Mine(hash hashFunction, opr []byte) {
 		// The process ends when signaled.
 		select {
 		case <-m.Control:
-			m.Finished = true
+			m.Response <- 0
 			return
 		default:
 		}
@@ -61,7 +104,7 @@ func (m *Mine) Mine(hash hashFunction, opr []byte) {
 		}
 
 		m.Hashcnt++
-		try := hash(nonceOpr)
+		try := m.HashFunction(nonceOpr)
 
 		d := lxr.Difficulty(try)
 		if d == 0 {

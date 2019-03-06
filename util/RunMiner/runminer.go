@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/FactomProject/factomd/common/primitives/random"
 	"github.com/dustin/go-humanize"
-	"github.com/pegnet/LXR256"
 	"github.com/pegnet/OracleMiner"
 	"time"
 )
@@ -19,19 +18,6 @@ func main() {
 
 	fmt.Printf("Running %d miners with a blocktime of %d seconds\n\n", NumberMiners, blocktime/time.Second)
 
-	for i := range miners {
-		// Setup the mining process
-		kill := make(chan int)
-		miners[i] = new(OracleMiner.Mine)
-		miners[i].Control = kill
-	}
-
-	// create an LXRHash function for the Lookup XoR hash.
-	lx := new(lxr.LXRHash)
-	lx.Init()
-	hashFunction := func(src []byte) []byte {
-		return lx.Hash(src)
-	}
 	blk := 0
 	// As a test function, we simply create a 300 byte random value buffer as a standin for the OPR record.
 	for {
