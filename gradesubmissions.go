@@ -1,33 +1,30 @@
 package OracleMiner
 
 import (
-	"encoding/hex"
 	"github.com/FactomProject/factom"
 	"github.com/pegnet/OracleRecord"
 	"github.com/FactomProject/FactomCode/common"
 )
 
 
-
-func GetChainID(fields []string) []byte {
+// GetChainIDFromStrings
+// Take a set of strings, and compute the chainID.  If you have binary fields, you
+// can call factom.ComputeChainIDFromFields directly, which takes [][]byte
+func GetChainIDFromStrings(fields []string) []byte {
 	var binary [][]byte
 	for _, str := range fields {
-		b, err := hex.DecodeString(str)
-		if err != nil {
-			panic(err)
-		}
-		binary = append(binary, b)
+		binary = append(binary, []byte(str))
 	}
 	return factom.ComputeChainIDFromFields(binary)
 }
 
 func InitNetwork(opr *oprecord.OraclePriceRecord) {
 	sPegNetChainID := []string{"PegNet", "TestNet"}
-	BPegNetChainID := GetChainID(sPegNetChainID)
+	BPegNetChainID := GetChainIDFromStrings(sPegNetChainID)
 	opr.SetChainID(BPegNetChainID)
 
 	sFactomDID := []string{"prototype", "miner"}
-	BFactomDigitalID := GetChainID(sFactomDID)
+	BFactomDigitalID := GetChainIDFromStrings(sFactomDID)
 	opr.SetFactomDigitalID(BFactomDigitalID)
 
 	opr.SetVersionEntryHash(common.Sha([]byte("an entry")).Bytes())

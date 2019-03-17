@@ -40,7 +40,7 @@ func main() {
 	var blocktime int64
 	alert := fm.Start()
 
-	OracleMiner.InitNetwork(fm)
+	OracleMiner.InitNetwork(&opr)
 
 	started := false
 	for {
