@@ -38,7 +38,7 @@ func Avg(list []*OPR) (avg [20]float64) {
 	// for every asset * number of OPRs)
 	numList := float64(len(list))
 	for i := range avg {
-		avg[i] = avg[i] / numList /100000000
+		avg[i] = avg[i] / numList / 100000000
 	}
 	return
 }
@@ -46,8 +46,8 @@ func Avg(list []*OPR) (avg [20]float64) {
 // Given the average answers across a set of tokens, grade the opr
 func CalculateGrade(avg [20]float64, opr *OPR) float64 {
 	for i, v := range opr.Tokens {
-		d := float64(v)/100000000 - avg[i]    // compute the difference from the average
-		opr.Grade = opr.Grade + d*d*d*d // the grade is the sum of the squares of the differences
+		d := float64(v)/100000000 - avg[i] // compute the difference from the average
+		opr.Grade = opr.Grade + d*d*d*d    // the grade is the sum of the squares of the differences
 	}
 	return opr.Grade
 }

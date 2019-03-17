@@ -1,6 +1,7 @@
 package OracleMiner
 
 import (
+	"fmt"
 	"github.com/FactomProject/factomd/common/primitives/random"
 	"github.com/pegnet/LXR256"
 )
@@ -8,18 +9,19 @@ import (
 type hashFunction func([]byte) []byte
 
 type Mine struct {
-	Response       chan int // Returns 0 when the miner stops
-	Control        chan int // sending any int to the Mine will stop mining
-	OPR            []byte   // The oracle Record that we were mining
-	OprHash        []byte   // The hash of the oracle record
-	BestDifficulty uint64   // Highest Difference Found
-	BestNonce      []byte   // The Nonce that produced the bestDifference
-	BestHash       []byte   // The best hash we found (to check the Best Difficulty against)
-	Hashcnt        int      // Count of hash rounds performed.
+	started        bool         // We are mining
+	Response       chan int     // Returns 0 when the miner stops
+	Control        chan int     // sending any int to the Mine will stop mining
+	OPR            []byte       // The oracle Record that we were mining
+	OprHash        []byte       // The hash of the oracle record
+	BestDifficulty uint64       // Highest Difference Found
+	BestNonce      []byte       // The Nonce that produced the bestDifference
+	BestHash       []byte       // The best hash we found (to check the Best Difficulty against)
+	Hashcnt        int          // Count of hash rounds performed.
 	HashFunction   hashFunction // The Hash function we will be using to mine
 }
 
-func (m *Mine) Init(){
+func (m *Mine) Init() {
 	m.BestDifficulty = 0
 	m.Hashcnt = 0
 	m.Response = make(chan int, 10)
@@ -38,27 +40,28 @@ func (m *Mine) Init(){
 }
 
 // Start mining on a given OPR
-func (m *Mine) Start(opr [] byte) (){
+func (m *Mine) Start(opr []byte) {
 	// Make sure the miner is stopped.
-	if m.Response != nil {
+	if m.started {
 		m.Stop()
+		m.started = false
 	}
 	m.Init()
+	m.started = true
 	go m.Mine(opr)
 }
 
 func (m *Mine) Stop() {
 	// Only stop a running miner
-	if m.Response == nil {
+	if m.started {
 		// Signal the mining process to stop
 		m.Control <- 0
 		// Wait for it to stop
 		<-m.Response
 		// Clear the response channel to indicate the miner is stopped.
-		m.Response = nil
+		m.started = false
 	}
 }
-
 
 // Create a nonce of eight bytes of zeros followed by 24 bytes of random values
 func GetFirstNonce() []byte {
@@ -70,7 +73,9 @@ func GetFirstNonce() []byte {
 }
 
 // Mine a given Oracle Price Record (OPR)
-func (m *Mine) Mine( opr []byte) {
+func (m *Mine) Mine(opr []byte) {
+	fmt.Println("Start Mining")
+	defer func() { fmt.Println("Stop Mining") }()
 
 	m.OPR = opr
 	m.OprHash = m.HashFunction(opr)

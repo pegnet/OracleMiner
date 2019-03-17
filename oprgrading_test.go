@@ -66,17 +66,14 @@ func TestGrading(t *testing.T) {
 				}
 				started++
 				notmined[i].OprHash = lx.Hash(notmined[i].OPRbinary)
-				go m.Mine(hashFunction, notmined[i].OPRbinary)
+				go m.Mine(notmined[i].OPRbinary)
 			}
 			time.Sleep(1 * time.Second)
 			for i, m := range miners {
 				if i >= started {
 					break
 				}
-				m.Control <- 1
-				for !m.Finished {
-					time.Sleep(10 * time.Millisecond)
-				}
+				m.Stop()
 				if m.BestDifficulty > 0 {
 					copy(notmined[i].Nonce[:], m.BestNonce)
 					notmined[i] = nil
@@ -111,17 +108,17 @@ func TestGrading(t *testing.T) {
 			}
 			fmt.Printf("Time to run on average: %v microseconds\n", totaltime/1000/int64(i+1))
 
-			for _,v := range prices {
-				fmt.Printf("%10.3f ",v)
+			for _, v := range prices {
+				fmt.Printf("%10.3f ", v)
 			}
-			for i,opr := range order {
-				fmt.Printf("\n\n%35s ","")
-				for _,v := range prices {
-					fmt.Printf("%10.3f ",v)
+			for i, opr := range order {
+				fmt.Printf("\n\n%35s ", "")
+				for _, v := range prices {
+					fmt.Printf("%10.3f ", v)
 				}
 				fmt.Println()
-				g := CalculateGrade(prices,opr)
-				fmt.Printf("%35s ",fmt.Sprintf("Index %3d Grade %10.3f ID %3d",i,g,opr.ID))
+				g := CalculateGrade(prices, opr)
+				fmt.Printf("%35s ", fmt.Sprintf("Index %3d Grade %10.3f ID %3d", i, g, opr.ID))
 				for _, iv := range opr.Tokens {
 					v := float64(iv) / 100000000
 					fmt.Printf("%10.3f ", v)

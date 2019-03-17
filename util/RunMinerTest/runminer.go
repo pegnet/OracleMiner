@@ -16,6 +16,10 @@ func main() {
 
 	var miners [NumberMiners]*OracleMiner.Mine
 
+	for i := range miners {
+		miners[i] = new(OracleMiner.Mine)
+	}
+
 	fmt.Printf("Running %d miners with a blocktime of %d seconds\n\n", NumberMiners, blocktime/time.Second)
 
 	blk := 0
@@ -27,19 +31,15 @@ func main() {
 
 		// Start the mining process on the record using a range of miners
 		for _, miner := range miners {
-			go miner.Mine(hashFunction, opr)
+			miner.Init()
+			go miner.Mine(opr)
 		}
 
 		time.Sleep(blocktime)
 
 		fmt.Println("=========================================================================")
 		for i, miner := range miners {
-			// stop each miner
-			miner.Control <- 1
-
-			for !miner.Finished {
-				time.Sleep(10 * time.Millisecond)
-			}
+			miner.Stop()
 			fmt.Printf("Miner %3d block %6d hash/sec %s\n",
 				i+1, blk, humanize.Comma(int64(miner.Hashcnt)/int64(blocktime.Seconds())))
 			fmt.Printf("%30s %x\n", "mined the OPR", opr[:32])
