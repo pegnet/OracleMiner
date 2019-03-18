@@ -64,6 +64,7 @@ func main() {
 				miner.Stop()
 				fmt.Printf("Difficulty %8x Nonce %x Hash %x \n", miner.BestDifficulty, miner.BestNonce, miner.BestHash)
 				started = false
+				OracleMiner.AddOpr(&opr, miner.BestNonce)
 			}
 		}
 

@@ -29,8 +29,6 @@ type FactomdMonitor struct {
 	faulttimeout            int64
 	roundtimeout            int64
 	status                  string
-	fcts                    []*factom.FactoidAddress
-	ecs                     []*factom.ECAddress
 }
 
 // GetBlockTime
@@ -123,45 +121,4 @@ func (f *FactomdMonitor) Stop() {
 	f.kill <- 0
 	<-f.response
 	f.mutex.Unlock()
-}
-
-// FundWallet()
-// This is just a debugging function.  These addresses work when run against a LOCAL network simulation.
-func (f *FactomdMonitor) FundWallet() (err error) {
-	f.fcts, f.ecs, err = factom.ImportAddresses("Fs3E9gV6DXsYzf7Fqx1fVBQPQXV695eP3k5XbmHEZVRLkMdD9qCK", "Es3LB2YW9bpdWmMnNQYb31kyPzqnecsNqmg5W4K7FKp4UP6omRTa")
-	if err != nil {
-		return
-	}
-	factom.DeleteTransaction("fundec")
-	rate, err := factom.GetRate()
-	if err != nil {
-		return
-	}
-	_, err = factom.NewTransaction("fundec")
-	if err != nil {
-		return
-	}
-
-	fct2ec := uint64(100) * 100000000 // Buy so many FCT (shift left 8 decimal digits to create a fixed point number)
-	_, err = factom.AddTransactionInput("fundec", f.fcts[0].String(), fct2ec)
-	if err != nil {
-		return
-	}
-	factom.AddTransactionECOutput("fundec", f.ecs[0].PubString(), fct2ec)
-	_, err = factom.AddTransactionFee("fundec", f.fcts[0].String())
-	if err != nil {
-		return
-	}
-	_, err = factom.SignTransaction("fundec", false)
-	if err != nil {
-		return
-	}
-	_, err = factom.SendTransaction("fundec")
-	if err != nil {
-		return
-	}
-
-	fmt.Println("Bought: ", fct2ec/rate, " Entry Credits")
-
-	return
 }
