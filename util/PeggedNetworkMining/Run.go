@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"github.com/pegnet/OracleMiner"
 	"github.com/pegnet/OracleRecord"
-	"time"
 	"sync"
+	"time"
+	"github.com/FactomProject/factomd/common/primitives/random"
 )
 
 const speedlimit = 600 // Don't hit the pricing APIs faster than once every 10 minutes.
@@ -14,8 +15,9 @@ type OPRState struct {
 	miner int
 	opr   oprecord.OraclePriceRecord
 }
-var	lastopr  []byte // Last OPR record
-var	lasttime int64  // Time of last API call
+
+var lastopr []byte // Last OPR record
+var lasttime int64 // Time of last API call
 var mutex sync.Mutex
 
 // GetOPR
@@ -43,8 +45,7 @@ func RunMiner(minerNumber int) {
 	state := new(OPRState)
 	state.miner = minerNumber
 
-
-
+	state.opr.SetChainID(random.RandByteSliceOfLen(32))
 	miner := new(OracleMiner.Mine)
 	miner.Init()
 
@@ -58,15 +59,13 @@ func RunMiner(minerNumber int) {
 	for {
 		min := <-alert
 		block := <-alert
-		fmt.Printf("Blockheight %d Minute %2d\n", block, min)
 		switch min {
 		case 1:
 			if started == false {
-				OracleMiner.GradeLastBlock(&state.opr, int64(block), miner)
+				OracleMiner.GradeLastBlock(state.miner, &state.opr, int64(block), miner)
 				blocktime = fm.GetBlockTime()
 				opr := GetOPR(state)
 				miner.Start(opr)
-				fmt.Println("mining started")
 				started = true
 			}
 		case 8:
@@ -74,7 +73,6 @@ func RunMiner(minerNumber int) {
 				// sleep for half a block time.
 				time.Sleep(time.Duration(int(blocktime)/10) * time.Second)
 				miner.Stop()
-				fmt.Printf("miner %5d Difficulty %8x Nonce %x Hash %x \n", state.miner, miner.BestDifficulty, miner.BestNonce, miner.BestHash)
 				started = false
 				OracleMiner.AddOpr(&state.opr, miner.BestNonce)
 			}
@@ -84,9 +82,11 @@ func RunMiner(minerNumber int) {
 }
 
 func main() {
-	for i:=0; i<100; i++ {
+	for i := 0; i < 100; i++ {
 		go RunMiner(i + 1)
 		time.Sleep(1 * time.Second)
 	}
-	for { time.Sleep(1*time.Second)}
+	for {
+		time.Sleep(1 * time.Second)
+	}
 }

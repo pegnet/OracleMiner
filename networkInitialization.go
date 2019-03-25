@@ -88,7 +88,6 @@ func FundWallet() (err error) {
 	check(err)
 	// If we have the 1000 entry credits, then we are happy clams, and can move on!
 	if bal > 1000 {
-		fmt.Println("We have ", bal, " entry credits!")
 		return
 	}
 	// Ah, we need the EC!
@@ -222,13 +221,12 @@ func AddOpr(opr *oprecord.OraclePriceRecord, nonce []byte) {
 	entryExtIDs := [][]byte{nonce}
 	assetEntry := NewEntry(oprChainID, entryExtIDs, bOpr)
 
-	txid, err := factom.CommitEntry(assetEntry, opr.EC)
+	_, err = factom.CommitEntry(assetEntry, opr.EC)
 	check(err)
-	fmt.Println("Wrote OPR Record", txid)
 	factom.RevealEntry(assetEntry)
 }
 
-func GradeLastBlock(opr *oprecord.OraclePriceRecord, dbht int64, miner *Mine) {
+func GradeLastBlock(minerNumber int, opr *oprecord.OraclePriceRecord, dbht int64, miner *Mine) {
 
 	var oprs []*oprecord.OraclePriceRecord
 
@@ -239,9 +237,10 @@ func GradeLastBlock(opr *oprecord.OraclePriceRecord, dbht int64, miner *Mine) {
 	check(err)
 	// Get the last DirectoryBlock
 	eb, err := factom.GetEBlock(ebMR)
-	check(err)
-
-	fmt.Printf("Got chain head at height %d\n", eb.Header.DBHeight)
+	if err != nil {
+		fmt.Println(err)
+		fmt.Printf("%s\n",ebMR)
+	}
 
 	for _, ebentry := range eb.EntryList {
 		entry, err := factom.GetEntry(ebentry.EntryHash)
@@ -260,7 +259,6 @@ func GradeLastBlock(opr *oprecord.OraclePriceRecord, dbht int64, miner *Mine) {
 		oprh := miner.HashFunction(entry.Content)
 		rec = append(rec, oprh...)
 		h := miner.HashFunction(rec)
-		fmt.Printf("Review entry hash %s nonce %x oprh %x hash %x\n", ebentry.EntryHash, entry.ExtIDs[0], oprh, h)
 		diff := lxr.Difficulty(h)
 		if diff == 0 {
 			continue
@@ -276,6 +274,16 @@ func GradeLastBlock(opr *oprecord.OraclePriceRecord, dbht int64, miner *Mine) {
 	if len(tobepaid) > 0 {
 		copy(opr.WinningPreviousOPR[:], tobepaid[0].OPRHash[:])
 	}
+	if minerNumber < 2 {
+		for _, op := range oprlist {
+			fmt.Println(op.String())
+		}
+	}
+	h := []byte {255,255,255,255,255,255,255,255,255,255,255,255,255,255}
+	if len(tobepaid) > 0{
+		h = tobepaid[0].OPRHash[:]
+	}
+	fmt.Printf("Miner %3d oprs %3d tobepaid %3d winner %x\n",minerNumber,len(oprs), len(tobepaid),h)
 }
 
 func NewEntry(chainID string, extIDs [][]byte, content []byte) *factom.Entry {

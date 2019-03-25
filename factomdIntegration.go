@@ -1,7 +1,6 @@
 package OracleMiner
 
 import (
-	"fmt"
 	"github.com/FactomProject/factom"
 	"sync"
 	"time"
@@ -43,8 +42,6 @@ func (f *FactomdMonitor) GetBlockTime() int64 {
 // poll
 // Go process to poll the Factoid client to provide insight into its operations.
 func (f *FactomdMonitor) poll() {
-	fmt.Println("Start Factomd Polling")
-	defer func() { fmt.Println("Stop Factomd Polling") }()
 	for {
 		var err error
 		for {
