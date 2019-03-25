@@ -5,25 +5,34 @@ import (
 	"fmt"
 	"github.com/FactomProject/FactomCode/common"
 	"github.com/FactomProject/factom"
+	"github.com/pegnet/LXR256"
 	"github.com/pegnet/OracleRecord"
 	"io/ioutil"
 	"strings"
 )
 
-func InitNetwork(opr *oprecord.OraclePriceRecord) {
+func InitNetwork(minerNumber int, opr *oprecord.OraclePriceRecord) (NetworkChainID []byte) {
 	sPegNetChainID := []string{"PegNet", "TestNet"}
 	BPegNetChainID := factom.ComputeChainIDFromStrings(sPegNetChainID)
 	opr.SetChainID(BPegNetChainID)
+	NetworkChainID = append(NetworkChainID[:0], BPegNetChainID...)
 
 	sOprExtIDs := []string{"Oracle Price Records", "TestNet"}
 	bOprChainID := factom.ComputeChainIDFromStrings(sOprExtIDs)
-
 
 	sFactomDID := []string{"prototype", "miner"}
 	BFactomDigitalID := factom.ComputeChainIDFromStrings(sFactomDID)
 	opr.SetFactomDigitalID(BFactomDigitalID)
 
 	opr.SetVersionEntryHash(common.Sha([]byte("an entry")).Bytes())
+
+	ecAdr, err := factom.FetchECAddress("EC3TsJHUs8bzbbVnratBafub6toRYdgzgbR7kWwCW4tqbmyySRmg")
+	if err != nil {
+		fmt.Println("Failed to initialize ", minerNumber)
+		fmt.Println(err.Error())
+		return
+	}
+	opr.EC = ecAdr
 
 	FundWallet()
 
@@ -40,28 +49,30 @@ func InitNetwork(opr *oprecord.OraclePriceRecord) {
 	// I'm doing a cheap lambda function here because we are looking for a finish, and breaking
 	// if we find it.
 	func() {
-		for _,entry := range entries {
+		for _, entry := range entries {
 			// We are looking for the first Asset Entry.  If we upgrade the network
 			// we will have to search for the 2nd or 3rd, or whatever.  Upgrades will
 			// be determined by the wallet code and the miners.
-			if len(entry.ExtIDs)>0 && string(entry.ExtIDs[0])== "Asset Entry" {
+			if len(entry.ExtIDs) > 0 && string(entry.ExtIDs[0]) == "Asset Entry" {
 				// If we have the Asset Entry, set that hash
 				opr.SetVersionEntryHash(entry.Hash())
 				return
 			}
 		}
-			AddAssetEntry(opr)
+		AddAssetEntry(opr)
 	}()
 
 	// Check for and create the Oracle Price Records Chain
 	chainid = hex.EncodeToString(bOprChainID)
-	if !factom.ChainExists(chainid){
+	if !factom.ChainExists(chainid) {
 		CreateOPRChain(opr)
 	}
+	return
 }
 
 func check(err error) {
 	if err != nil {
+		fmt.Println("If you are initializing a test network, you may need to wait a block and try again.")
 		panic(err)
 	}
 }
@@ -165,10 +176,8 @@ func AddAssetEntry(opr *oprecord.OraclePriceRecord) {
 	}
 
 	// Create the first entry for the PegNetChain
-	sPegNetChainID := [][]byte{[]byte("PegNet"), []byte("TestNet")}
 	PegNetChainID := hex.EncodeToString(opr.ChainID[:])
-	SPegNetChainID := hex.EncodeToString(factom.ComputeChainIDFromFields(sPegNetChainID))
-	_ = SPegNetChainID
+
 	assetEntry := NewEntryStr(PegNetChainID, assets, "")
 
 	txid, err := factom.CommitEntry(assetEntry, ec_adr)
@@ -176,7 +185,6 @@ func AddAssetEntry(opr *oprecord.OraclePriceRecord) {
 	fmt.Println("Created network chain ", txid)
 	factom.RevealEntry(assetEntry)
 }
-
 
 // The Pegged Network has a defining chain.  This function builds and returns the expected defining chain
 // for the network.
@@ -186,7 +194,7 @@ func CreateOPRChain(opr *oprecord.OraclePriceRecord) {
 	ec_adr, err := factom.FetchECAddress("EC3TsJHUs8bzbbVnratBafub6toRYdgzgbR7kWwCW4tqbmyySRmg")
 
 	// Create the first entry for the OPR Chain
-	oprExtIDs := []string {"Oracle Price Records", "TestNet"}
+	oprExtIDs := []string{"Oracle Price Records", "TestNet"}
 	oprChainID := hex.EncodeToString(factom.ComputeChainIDFromStrings(oprExtIDs))
 
 	e := NewEntryStr(oprChainID, oprExtIDs, "")
@@ -201,31 +209,74 @@ func CreateOPRChain(opr *oprecord.OraclePriceRecord) {
 
 // The Pegged Network has a defining chain.  This function builds and returns the expected defining chain
 // for the network.
-func AddOpr(opr *oprecord.OraclePriceRecord,nonce []byte) {
+func AddOpr(opr *oprecord.OraclePriceRecord, nonce []byte) {
 	fmt.Println("Adding OPR Record")
-	// Create an entry credit address
-	ec_adr, err := factom.FetchECAddress("EC3TsJHUs8bzbbVnratBafub6toRYdgzgbR7kWwCW4tqbmyySRmg")
 
 	// Create the OPR Entry
 	// Create the first entry for the OPR Chain
-	oprExtIDs := []string {"Oracle Price Records", "TestNet"}
+	oprExtIDs := []string{"Oracle Price Records", "TestNet"}
 	oprChainID := hex.EncodeToString(factom.ComputeChainIDFromStrings(oprExtIDs))
 	bOpr, err := opr.MarshalBinary()
 	check(err)
 
-	entryExtIDs := [][]byte{ nonce}
-	assetEntry := NewEntry(oprChainID, entryExtIDs,bOpr)
+	entryExtIDs := [][]byte{nonce}
+	assetEntry := NewEntry(oprChainID, entryExtIDs, bOpr)
 
-	txid, err := factom.CommitEntry(assetEntry, ec_adr)
+	txid, err := factom.CommitEntry(assetEntry, opr.EC)
 	check(err)
 	fmt.Println("Wrote OPR Record", txid)
 	factom.RevealEntry(assetEntry)
 }
 
+func GradeLastBlock(opr *oprecord.OraclePriceRecord, dbht int64, miner *Mine) {
 
+	var oprs []*oprecord.OraclePriceRecord
 
+	oprExtIDs := []string{"Oracle Price Records", "TestNet"}
+	oprChainID := hex.EncodeToString(factom.ComputeChainIDFromStrings(oprExtIDs))
+	// Get the last DirectoryBlock Merkle Root
+	ebMR, err := factom.GetChainHead(oprChainID)
+	check(err)
+	// Get the last DirectoryBlock
+	eb, err := factom.GetEBlock(ebMR)
+	check(err)
 
+	fmt.Printf("Got chain head at height %d\n", eb.Header.DBHeight)
 
+	for _, ebentry := range eb.EntryList {
+		entry, err := factom.GetEntry(ebentry.EntryHash)
+		if err != nil {
+			continue
+		}
+		if len(entry.ExtIDs) != 1 {
+			continue
+		}
+		newOpr := new(oprecord.OraclePriceRecord)
+		err = newOpr.UnmarshalBinary(entry.Content)
+		if err != nil {
+			continue
+		}
+		rec := append([]byte{}, entry.ExtIDs[0]...)
+		oprh := miner.HashFunction(entry.Content)
+		rec = append(rec, oprh...)
+		h := miner.HashFunction(rec)
+		fmt.Printf("Review entry hash %s nonce %x oprh %x hash %x\n", ebentry.EntryHash, entry.ExtIDs[0], oprh, h)
+		diff := lxr.Difficulty(h)
+		if diff == 0 {
+			continue
+		}
+		copy(newOpr.Nonce[:], entry.ExtIDs[0])
+		copy(newOpr.OPRHash[:], oprh)
+		newOpr.Difficulty = diff
+		oprs = append(oprs, newOpr)
+	}
+
+	tobepaid, oprlist := oprecord.GradeBlock(oprs)
+	_, _ = tobepaid, oprlist
+	if len(tobepaid) > 0 {
+		copy(opr.WinningPreviousOPR[:], tobepaid[0].OPRHash[:])
+	}
+}
 
 func NewEntry(chainID string, extIDs [][]byte, content []byte) *factom.Entry {
 	e := factom.Entry{ChainID: chainID, ExtIDs: extIDs, Content: content}

@@ -83,8 +83,8 @@ func (m *Mine) Mine(opr []byte) {
 
 	// Clear out some variables in case the Mine struct is being reused
 	m.BestDifficulty = 0
-	m.BestNonce = m.BestNonce[:0]
-	m.BestHash = m.BestHash[:0]
+	m.BestNonce = []byte{}
+	m.BestHash = []byte{}
 
 	// Put my nonce and Opr together... We hash them both
 	nonceOpr := GetFirstNonce()
@@ -119,6 +119,7 @@ func (m *Mine) Mine(opr []byte) {
 			m.BestDifficulty = d
 			m.BestNonce = append(m.BestNonce[:0], nonceOpr[:32]...)
 			m.BestHash = append(m.BestHash[:0], try...)
+			fmt.Printf("mine:  %x %x %x\n", nonceOpr[:32], nonceOpr[32:], try)
 		}
 	}
 }
