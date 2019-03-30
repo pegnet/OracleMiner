@@ -7,26 +7,30 @@ import (
 	"github.com/FactomProject/factom"
 	"github.com/pegnet/LXR256"
 	"github.com/pegnet/OracleRecord"
-	"io/ioutil"
-	"strings"
 )
 
-func InitNetwork(minerNumber int, opr *oprecord.OraclePriceRecord) (NetworkChainID []byte) {
-	sPegNetChainID := []string{"PegNet", "TestNet"}
-	BPegNetChainID := factom.ComputeChainIDFromStrings(sPegNetChainID)
+func InitNetwork(mstate *MinerState, minerNumber int, opr *oprecord.OraclePriceRecord) {
+
+	PegNetChain := mstate.GetProtocolChain()
+	BPegNetChainID,err := hex.DecodeString(PegNetChain)
+	if err != nil {
+		panic("Could not decode the protocol chain:"+err.Error())
+	}
 	opr.SetChainID(BPegNetChainID)
-	NetworkChainID = append(NetworkChainID[:0], BPegNetChainID...)
 
-	sOprExtIDs := []string{"Oracle Price Records", "TestNet"}
-	bOprChainID := factom.ComputeChainIDFromStrings(sOprExtIDs)
+	bOprChainID,err := hex.DecodeString(mstate.GetProtocolChain())
+	if err != nil {panic("No OPR Chain found in config file")}
 
-	sFactomDID := []string{"prototype", "miner"}
-	BFactomDigitalID := factom.ComputeChainIDFromStrings(sFactomDID)
+	did := mstate.GetIdentityChainID()
+	BFactomDigitalID, _ := hex.DecodeString(did)
+
+	fmt.Println("ChainID: " + did)
 	opr.SetFactomDigitalID(BFactomDigitalID)
 
 	opr.SetVersionEntryHash(common.Sha([]byte("an entry")).Bytes())
 
-	ecAdr, err := factom.FetchECAddress("EC3TsJHUs8bzbbVnratBafub6toRYdgzgbR7kWwCW4tqbmyySRmg")
+	sECAdr := mstate.GetECAddress()
+	ecAdr, err := factom.FetchECAddress(sECAdr)
 	if err != nil {
 		fmt.Println("Failed to initialize ", minerNumber)
 		fmt.Println(err.Error())
@@ -34,13 +38,13 @@ func InitNetwork(minerNumber int, opr *oprecord.OraclePriceRecord) (NetworkChain
 	}
 	opr.EC = ecAdr
 
-	FundWallet()
+	FundWallet(mstate)
 
 	// First check if the network has been initialized.  If it hasn't, then create all
 	// the initial structures.  This is only needed while testing.
-	chainid := hex.EncodeToString(opr.ChainID[:])
+	chainid := mstate.GetOraclePriceRecordChain()
 	if !factom.ChainExists(chainid) {
-		CreatePegNetChain(opr)
+		CreateOPRChain(mstate)
 	}
 
 	// Check that we have an asset entry
@@ -65,7 +69,7 @@ func InitNetwork(minerNumber int, opr *oprecord.OraclePriceRecord) (NetworkChain
 	// Check for and create the Oracle Price Records Chain
 	chainid = hex.EncodeToString(bOprChainID)
 	if !factom.ChainExists(chainid) {
-		CreateOPRChain(opr)
+		CreateOPRChain(mstate)
 	}
 	return
 }
@@ -79,10 +83,10 @@ func check(err error) {
 
 // FundWallet()
 // This is just a debugging function.  These addresses work when run against a LOCAL network simulation.
-func FundWallet() (err error) {
+func FundWallet(m *MinerState) (err error) {
 	// Get our EC address
-	ecadr := "EC3TsJHUs8bzbbVnratBafub6toRYdgzgbR7kWwCW4tqbmyySRmg"
-
+	ecadr := m.GetECAddress()
+    fctadr := m.GetFCTAddress()
 	// Check and see if we have at least 1000 entry credits
 	bal, err := factom.GetECBalance(ecadr)
 	check(err)
@@ -90,10 +94,7 @@ func FundWallet() (err error) {
 	if bal > 1000 {
 		return
 	}
-	// Ah, we need the EC!
-	dat, err := ioutil.ReadFile("fct.dat")
-	check(err)
-	fctadr := strings.TrimSpace(string(dat))
+
 
 	factom.DeleteTransaction("fundec")
 	rate, err := factom.GetRate()
@@ -102,7 +103,7 @@ func FundWallet() (err error) {
 	_, err = factom.NewTransaction("fundec")
 	check(err)
 
-	fct2ec := uint64(100) * 100000000 // Buy so many FCT (shift left 8 decimal digits to create a fixed point number)
+	fct2ec := uint64(1000) * rate // Buy so many FCT (shift left 8 decimal digits to create a fixed point number)
 	_, err = factom.AddTransactionInput("fundec", fctadr, fct2ec)
 	check(err)
 
@@ -123,17 +124,14 @@ func FundWallet() (err error) {
 
 // The Pegged Network has a defining chain.  This function builds and returns the expected defining chain
 // for the network.
-func CreatePegNetChain(opr *oprecord.OraclePriceRecord) {
-	fmt.Println("Creating the PegNetChain")
-	// Create an entry credit address
-	ec_adr, err := factom.FetchECAddress("EC3TsJHUs8bzbbVnratBafub6toRYdgzgbR7kWwCW4tqbmyySRmg")
+func CreatePegNetChain(mstate *MinerState, opr *oprecord.OraclePriceRecord) {
+	sECAdr := mstate.GetECAddress()
+	ec_adr, err := factom.FetchECAddress(sECAdr)
 
 	// Create the first entry for the PegNetChain
-	sPegNetChainID := [][]byte{[]byte("PegNet"), []byte("TestNet")}
-	PegNetChainID := hex.EncodeToString(opr.ChainID[:])
-	SPegNetChainID := hex.EncodeToString(factom.ComputeChainIDFromFields(sPegNetChainID))
-	_ = SPegNetChainID
-	e := NewEntry(PegNetChainID, sPegNetChainID, []byte{})
+	sPegNetChainID := mstate.GetProtocolChain()
+	sPegNetChainExtIDs := mstate.GetProtocolChainExtIDs()
+	e := NewEntryStr(sPegNetChainID, sPegNetChainExtIDs, "")
 
 	pegNetChain := factom.NewChain(e)
 
@@ -187,14 +185,14 @@ func AddAssetEntry(opr *oprecord.OraclePriceRecord) {
 
 // The Pegged Network has a defining chain.  This function builds and returns the expected defining chain
 // for the network.
-func CreateOPRChain(opr *oprecord.OraclePriceRecord) {
+func CreateOPRChain(mstate *MinerState) {
 	fmt.Println("Creating the Oracle Price Record chain")
 	// Create an entry credit address
-	ec_adr, err := factom.FetchECAddress("EC3TsJHUs8bzbbVnratBafub6toRYdgzgbR7kWwCW4tqbmyySRmg")
+	ec_adr, err := factom.FetchECAddress(mstate.GetECAddress())
 
 	// Create the first entry for the OPR Chain
-	oprExtIDs := []string{"Oracle Price Records", "TestNet"}
-	oprChainID := hex.EncodeToString(factom.ComputeChainIDFromStrings(oprExtIDs))
+	oprChainID := mstate.GetOraclePriceRecordChain()
+    oprExtIDs := mstate.GetOraclePriceRecordExtIDs()
 
 	e := NewEntryStr(oprChainID, oprExtIDs, "")
 
@@ -208,13 +206,12 @@ func CreateOPRChain(opr *oprecord.OraclePriceRecord) {
 
 // The Pegged Network has a defining chain.  This function builds and returns the expected defining chain
 // for the network.
-func AddOpr(opr *oprecord.OraclePriceRecord, nonce []byte) {
+func AddOpr(mstate *MinerState,  nonce []byte) {
 	fmt.Println("Adding OPR Record")
-
+	opr := mstate.OPR
 	// Create the OPR Entry
 	// Create the first entry for the OPR Chain
-	oprExtIDs := []string{"Oracle Price Records", "TestNet"}
-	oprChainID := hex.EncodeToString(factom.ComputeChainIDFromStrings(oprExtIDs))
+	oprChainID := mstate.GetOraclePriceRecordChain()
 	bOpr, err := opr.MarshalBinary()
 	check(err)
 
@@ -226,12 +223,11 @@ func AddOpr(opr *oprecord.OraclePriceRecord, nonce []byte) {
 	factom.RevealEntry(assetEntry)
 }
 
-func GradeLastBlock(minerNumber int, opr *oprecord.OraclePriceRecord, dbht int64, miner *Mine) {
+func GradeLastBlock(mstate *MinerState, opr *oprecord.OraclePriceRecord, dbht int64, miner *Mine) {
 
 	var oprs []*oprecord.OraclePriceRecord
 
-	oprExtIDs := []string{"Oracle Price Records", "TestNet"}
-	oprChainID := hex.EncodeToString(factom.ComputeChainIDFromStrings(oprExtIDs))
+	oprChainID := mstate.GetProtocolChain()
 	// Get the last DirectoryBlock Merkle Root
 	ebMR, err := factom.GetChainHead(oprChainID)
 	check(err)
@@ -239,7 +235,7 @@ func GradeLastBlock(minerNumber int, opr *oprecord.OraclePriceRecord, dbht int64
 	eb, err := factom.GetEBlock(ebMR)
 	if err != nil {
 		fmt.Println(err)
-		fmt.Printf("%s\n",ebMR)
+		fmt.Printf("%s\n", ebMR)
 	}
 
 	for _, ebentry := range eb.EntryList {
@@ -274,16 +270,16 @@ func GradeLastBlock(minerNumber int, opr *oprecord.OraclePriceRecord, dbht int64
 	if len(tobepaid) > 0 {
 		copy(opr.WinningPreviousOPR[:], tobepaid[0].OPRHash[:])
 	}
-	if minerNumber < 2 {
+	if mstate.MinerNumber < 2 {
 		for _, op := range oprlist {
 			fmt.Println(op.String())
 		}
 	}
-	h := []byte {255,255,255,255,255,255,255,255,255,255,255,255,255,255}
-	if len(tobepaid) > 0{
+	h := []byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}
+	if len(tobepaid) > 0 {
 		h = tobepaid[0].OPRHash[:]
 	}
-	fmt.Printf("Miner %3d oprs %3d tobepaid %3d winner %x\n",minerNumber,len(oprs), len(tobepaid),h)
+	fmt.Printf("Miner %3d oprs %3d tobepaid %3d winner %x\n", mstate.MinerNumber, len(oprs), len(tobepaid), h)
 }
 
 func NewEntry(chainID string, extIDs [][]byte, content []byte) *factom.Entry {

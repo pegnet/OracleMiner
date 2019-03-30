@@ -9,7 +9,7 @@ type hashFunction func([]byte) []byte
 
 type Mine struct {
 	started        bool         // We are mining
-	Response       chan int     // Returns 0 when the miner stops
+	Response       chan int     // Returns 0 when the MinerNumber stops
 	Control        chan int     // sending any int to the Mine will stop mining
 	OPR            []byte       // The oracle Record that we were mining
 	OprHash        []byte       // The hash of the oracle record
@@ -40,7 +40,7 @@ func (m *Mine) Init() {
 
 // Start mining on a given OPR
 func (m *Mine) Start(opr []byte) {
-	// Make sure the miner is stopped.
+	// Make sure the MinerNumber is stopped.
 	if m.started {
 		m.Stop()
 		m.started = false
@@ -51,13 +51,13 @@ func (m *Mine) Start(opr []byte) {
 }
 
 func (m *Mine) Stop() {
-	// Only stop a running miner
+	// Only stop a running MinerNumber
 	if m.started {
 		// Signal the mining process to stop
 		m.Control <- 0
 		// Wait for it to stop
 		<-m.Response
-		// Clear the response channel to indicate the miner is stopped.
+		// Clear the response channel to indicate the MinerNumber is stopped.
 		m.started = false
 	}
 }

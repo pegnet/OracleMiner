@@ -2,50 +2,31 @@ package main
 
 import (
 	"fmt"
-	"github.com/pegnet/OracleMiner"
-	"github.com/pegnet/OracleRecord"
-	"sync"
-	"time"
 	"github.com/FactomProject/factomd/common/primitives/random"
+	"github.com/pegnet/OracleMiner"
+	"time"
+	"encoding/binary"
 )
-
-const speedlimit = 600 // Don't hit the pricing APIs faster than once every 10 minutes.
-
-type OPRState struct {
-	miner int
-	opr   oprecord.OraclePriceRecord
-}
-
-var lastopr []byte // Last OPR record
-var lasttime int64 // Time of last API call
-var mutex sync.Mutex
 
 // GetOPR
 // To preserve our free access to the APIs we are using, don't actually build the OPR record quicker
 // than the speedlimit.  Faster calls just get the last OPR record
-func GetOPR(state *OPRState) []byte {
-	mutex.Lock()
-	defer mutex.Unlock()
-	now := time.Now().Unix()
-	if now-lasttime < 600 {
-		return lastopr
-	}
-	lasttime = now
-	state.opr.GetOPRecord()
-	data, err := state.opr.MarshalBinary()
+func GetOPR(state *OracleMiner.MinerState) []byte {
+    binary.BigEndian.PutUint64(state.OPR.BlockReward[:],5000)
+	state.OPR.GetOPRecord(state.Config)
+	data, err := state.OPR.MarshalBinary()
 	if err != nil {
 		panic("Could not produce an oracle record")
 	}
-	lastopr = data
-	fmt.Println(state.opr.String())
+	fmt.Println(state.OPR.String())
 	return data
 }
 
 func RunMiner(minerNumber int) {
-	state := new(OPRState)
-	state.miner = minerNumber
+	mstate := new(OracleMiner.MinerState)
+	mstate.MinerNumber = minerNumber
 
-	state.opr.SetChainID(random.RandByteSliceOfLen(32))
+	mstate.OPR.SetChainID(random.RandByteSliceOfLen(32))
 	miner := new(OracleMiner.Mine)
 	miner.Init()
 
@@ -53,7 +34,8 @@ func RunMiner(minerNumber int) {
 	var blocktime int64
 	alert := fm.Start()
 
-	OracleMiner.InitNetwork(minerNumber, &state.opr)
+	mstate.LoadConfig()
+	OracleMiner.InitNetwork(mstate, minerNumber, &mstate.OPR)
 
 	started := false
 	for {
@@ -62,9 +44,9 @@ func RunMiner(minerNumber int) {
 		switch min {
 		case 1:
 			if started == false {
-				OracleMiner.GradeLastBlock(state.miner, &state.opr, int64(block), miner)
+				OracleMiner.GradeLastBlock(mstate, &mstate.OPR, int64(block), miner)
 				blocktime = fm.GetBlockTime()
-				opr := GetOPR(state)
+				opr := GetOPR(mstate)
 				miner.Start(opr)
 				started = true
 			}
@@ -74,7 +56,7 @@ func RunMiner(minerNumber int) {
 				time.Sleep(time.Duration(int(blocktime)/10) * time.Second)
 				miner.Stop()
 				started = false
-				OracleMiner.AddOpr(&state.opr, miner.BestNonce)
+				OracleMiner.AddOpr(mstate,  miner.BestNonce)
 			}
 		}
 
@@ -82,7 +64,7 @@ func RunMiner(minerNumber int) {
 }
 
 func main() {
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 1; i++ {
 		go RunMiner(i + 1)
 		time.Sleep(1 * time.Second)
 	}
