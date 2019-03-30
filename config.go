@@ -29,6 +29,16 @@ func (m *MinerState) LoadConfig() {
 	configfile := fmt.Sprintf("%s/.%s/miner%03d/config.ini",userPath, protocolname, m.MinerNumber)
 	iniFile := config.NewINIFile(configfile)
 	m.Config = config.NewConfig([]config.Provider{iniFile})
+	_,err = m.Config.String("Miner.Protocol")
+	if err != nil {
+		configfile = fmt.Sprintf("%s/.%s/defaultconfig.ini",userPath,protocolname)
+		iniFile := config.NewINIFile(configfile)
+		m.Config = config.NewConfig([]config.Provider{iniFile})
+		_,err = m.Config.String("Miner.Protocol")
+		if err != nil {
+			panic("Failed to open the config file for this miner, and couldn't load the default file either")
+		}
+	}
 }
 
 func (m *MinerState) GetECAddress() string {

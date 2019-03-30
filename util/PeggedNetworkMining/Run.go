@@ -12,7 +12,7 @@ import (
 // To preserve our free access to the APIs we are using, don't actually build the OPR record quicker
 // than the speedlimit.  Faster calls just get the last OPR record
 func GetOPR(state *OracleMiner.MinerState) []byte {
-    binary.BigEndian.PutUint64(state.OPR.BlockReward[:],5000)
+    binary.BigEndian.PutUint64(state.OPR.BlockReward[:],5000 *100000000)
 	state.OPR.GetOPRecord(state.Config)
 	data, err := state.OPR.MarshalBinary()
 	if err != nil {
@@ -65,7 +65,7 @@ func RunMiner(minerNumber int) {
 
 func main() {
 	for i := 0; i < 1; i++ {
-		go RunMiner(i + 1)
+		go RunMiner(i + 100)
 		time.Sleep(1 * time.Second)
 	}
 	for {
