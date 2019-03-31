@@ -42,7 +42,11 @@ func InitNetwork(mstate *MinerState, minerNumber int, opr *oprecord.OraclePriceR
 
 	// First check if the network has been initialized.  If it hasn't, then create all
 	// the initial structures.  This is only needed while testing.
-	chainid := mstate.GetOraclePriceRecordChain()
+	chainid := mstate.GetProtocolChain()
+	if !factom.ChainExists(chainid) {
+		CreatePegNetChain(mstate)
+	}
+	chainid = mstate.GetOraclePriceRecordChain()
 	if !factom.ChainExists(chainid) {
 		CreateOPRChain(mstate)
 	}
@@ -63,7 +67,7 @@ func InitNetwork(mstate *MinerState, minerNumber int, opr *oprecord.OraclePriceR
 				return
 			}
 		}
-		AddAssetEntry(opr)
+		AddAssetEntry(mstate)
 	}()
 
 	// Check for and create the Oracle Price Records Chain
@@ -124,7 +128,7 @@ func FundWallet(m *MinerState) (err error) {
 
 // The Pegged Network has a defining chain.  This function builds and returns the expected defining chain
 // for the network.
-func CreatePegNetChain(mstate *MinerState, opr *oprecord.OraclePriceRecord) {
+func CreatePegNetChain(mstate *MinerState) {
 	sECAdr := mstate.GetECAddress()
 	ec_adr, err := factom.FetchECAddress(sECAdr)
 
@@ -143,10 +147,11 @@ func CreatePegNetChain(mstate *MinerState, opr *oprecord.OraclePriceRecord) {
 
 // The Pegged Network has a defining chain.  This function builds and returns the expected defining chain
 // for the network.
-func AddAssetEntry(opr *oprecord.OraclePriceRecord) {
+func AddAssetEntry(mstate *MinerState) {
 	fmt.Println("Adding AssetEntry")
 	// Create an entry credit address
-	ec_adr, err := factom.FetchECAddress("EC3TsJHUs8bzbbVnratBafub6toRYdgzgbR7kWwCW4tqbmyySRmg")
+	sECAdr := mstate.GetECAddress()
+	ec_adr, err := factom.FetchECAddress(sECAdr)
 
 	assets := []string{
 		"Asset Entry",
@@ -173,7 +178,7 @@ func AddAssetEntry(opr *oprecord.OraclePriceRecord) {
 	}
 
 	// Create the first entry for the PegNetChain
-	PegNetChainID := hex.EncodeToString(opr.ChainID[:])
+	PegNetChainID := mstate.GetProtocolChain()
 
 	assetEntry := NewEntryStr(PegNetChainID, assets, "")
 
@@ -189,7 +194,6 @@ func CreateOPRChain(mstate *MinerState) {
 	fmt.Println("Creating the Oracle Price Record chain")
 	// Create an entry credit address
 	ec_adr, err := factom.FetchECAddress(mstate.GetECAddress())
-
 	// Create the first entry for the OPR Chain
 	oprChainID := mstate.GetOraclePriceRecordChain()
     oprExtIDs := mstate.GetOraclePriceRecordExtIDs()
