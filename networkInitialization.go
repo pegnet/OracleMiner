@@ -13,19 +13,20 @@ import (
 func InitNetwork(mstate *MinerState, minerNumber int, opr *oprecord.OraclePriceRecord) {
 
 	PegNetChain := mstate.GetProtocolChain()
-	BPegNetChainID,err := hex.DecodeString(PegNetChain)
+	BPegNetChainID, err := hex.DecodeString(PegNetChain)
 	if err != nil {
-		panic("Could not decode the protocol chain:"+err.Error())
+		panic("Could not decode the protocol chain:" + err.Error())
 	}
 	opr.SetChainID(BPegNetChainID)
 
-	bOprChainID,err := hex.DecodeString(mstate.GetProtocolChain())
-	if err != nil {panic("No OPR Chain found in config file")}
+	bOprChainID, err := hex.DecodeString(mstate.GetProtocolChain())
+	if err != nil {
+		panic("No OPR Chain found in config file")
+	}
 
 	did := mstate.GetIdentityChainID()
 	BFactomDigitalID, _ := hex.DecodeString(did)
 
-	fmt.Println("ChainID: " + did)
 	opr.SetFactomDigitalID(BFactomDigitalID)
 
 	opr.SetVersionEntryHash(common.Sha([]byte("an entry")).Bytes())
@@ -97,7 +98,7 @@ func check(err error) {
 func FundWallet(m *MinerState) (err error) {
 	// Get our EC address
 	ecadr := m.GetECAddress()
-    fctadr := m.GetFCTAddress()
+	fctadr := m.GetFCTAddress()
 	// Check and see if we have at least 1000 entry credits
 	bal, err := factom.GetECBalance(ecadr)
 	check(err)
@@ -105,7 +106,6 @@ func FundWallet(m *MinerState) (err error) {
 	if bal > 1000 {
 		return
 	}
-
 
 	factom.DeleteTransaction("fundec")
 	rate, err := factom.GetRate()
@@ -203,12 +203,11 @@ func AddAssetEntry(mstate *MinerState) {
 // The Pegged Network has a defining chain.  This function builds and returns the expected defining chain
 // for the network.
 func CreateOPRChain(mstate *MinerState) {
-	fmt.Println("Creating the Oracle Price Record chain")
 	// Create an entry credit address
 	ec_adr, err := factom.FetchECAddress(mstate.GetECAddress())
 	// Create the first entry for the OPR Chain
 	oprChainID := mstate.GetOraclePriceRecordChain()
-    oprExtIDs := mstate.GetOraclePriceRecordExtIDs()
+	oprExtIDs := mstate.GetOraclePriceRecordExtIDs()
 
 	e := NewEntryStr(oprChainID, oprExtIDs, "")
 
@@ -222,8 +221,7 @@ func CreateOPRChain(mstate *MinerState) {
 
 // The Pegged Network has a defining chain.  This function builds and returns the expected defining chain
 // for the network.
-func AddOpr(mstate *MinerState,  nonce []byte) {
-	fmt.Println("Adding OPR Record")
+func AddOpr(mstate *MinerState, nonce []byte) {
 	opr := mstate.OPR
 	// Create the OPR Entry
 	// Create the first entry for the OPR Chain
@@ -254,24 +252,22 @@ func GradeLastBlock(mstate *MinerState, opr *oprecord.OraclePriceRecord, dbht in
 		fmt.Printf("%s\n", ebMR)
 	}
 
-	fmt.Println(len(eb.EntryList)," records found")
 	for i, ebentry := range eb.EntryList {
 		entry, err := factom.GetEntry(ebentry.EntryHash)
 		if err != nil {
-			fmt.Println (i,"Entry Nil")
+			fmt.Println(i, "Entry Nil")
 			continue
 		}
 		if len(entry.ExtIDs) != 1 {
-			fmt.Println (i,"ExtIDs not 1")
+			fmt.Println(i, "ExtIDs not 1")
 			continue
 		}
 		newOpr := new(oprecord.OraclePriceRecord)
 		err = newOpr.UnmarshalBinary(entry.Content)
 		if err != nil {
-			fmt.Println (i,"Error Unmarshalling")
+			fmt.Println(i, "Error Unmarshalling")
 			continue
 		}
-		fmt.Println(newOpr.String())
 
 		rec := append([]byte{}, entry.ExtIDs[0]...)
 		oprh := miner.HashFunction(entry.Content)
@@ -292,17 +288,19 @@ func GradeLastBlock(mstate *MinerState, opr *oprecord.OraclePriceRecord, dbht in
 	_, _ = tobepaid, oprlist
 	if len(tobepaid) > 0 {
 		copy(opr.WinningPreviousOPR[:], tobepaid[0].OPRHash[:])
-	}
-	if mstate.MinerNumber < 2 {
-		for _, op := range tobepaid {
-			fmt.Println(op.String())
+
+		h := tobepaid[0].FactomDigitalID[:6]
+
+		if mstate.MinerNumber < 3 {
+			fmt.Printf("OPRs %3d tobepaid %3d winner %x\n", len(oprs), len(tobepaid), h)
+
+			if mstate.MinerNumber == 1 {
+				for _, op := range tobepaid {
+					fmt.Println(op.ShortString())
+				}
+			}
 		}
 	}
-	h := []byte{255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255}
-	if len(tobepaid) > 0 {
-		h = tobepaid[0].OPRHash[:]
-	}
-	fmt.Printf("Miner %3d oprs %3d tobepaid %3d winner %x\n", mstate.MinerNumber, len(oprs), len(tobepaid), h)
 }
 
 func NewEntry(chainID string, extIDs [][]byte, content []byte) *factom.Entry {

@@ -2,27 +2,25 @@ package main
 
 import (
 	"encoding/binary"
-	"fmt"
 	"github.com/pegnet/OracleMiner"
 	"time"
+	"math/rand"
 )
 
 // GetOPR
 // To preserve our free access to the APIs we are using, don't actually build the OPR record quicker
 // than the speedlimit.  Faster calls just get the last OPR record
 func GetOPR(state *OracleMiner.MinerState) []byte {
-    binary.BigEndian.PutUint64(state.OPR.BlockReward[:],5000 *100000000)
+	binary.BigEndian.PutUint64(state.OPR.BlockReward[:], 5000*100000000)
 	state.OPR.GetOPRecord(state.Config)
 	data, err := state.OPR.MarshalBinary()
 	if err != nil {
 		panic("Could not produce an oracle record")
 	}
-	fmt.Println(state.OPR.String())
 	return data
 }
 
 func RunMiner(minerNumber int) {
-	fmt.Print(" ",minerNumber)
 	mstate := new(OracleMiner.MinerState)
 	mstate.MinerNumber = minerNumber
 
@@ -37,6 +35,7 @@ func RunMiner(minerNumber int) {
 	mstate.LoadConfig()
 	OracleMiner.InitNetwork(mstate, minerNumber, &mstate.OPR)
 
+	funding := false
 	started := false
 	for {
 		min := <-alert
@@ -49,6 +48,7 @@ func RunMiner(minerNumber int) {
 				opr := GetOPR(mstate)
 				miner.Start(opr)
 				started = true
+				funding = true
 			}
 		case 8:
 			if started {
@@ -56,9 +56,15 @@ func RunMiner(minerNumber int) {
 				time.Sleep(time.Duration(int(blocktime)/10) * time.Second)
 				miner.Stop()
 				started = false
-				OracleMiner.AddOpr(mstate,  miner.BestNonce)
+				OracleMiner.AddOpr(mstate, miner.BestNonce)
 			}
+		case 0:
+			if funding {
+				if rand.Intn(100)>95 {
+		OracleMiner.FundWallet(mstate)
 		}
+			funding = false
+			}
 
 	}
 }
