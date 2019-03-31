@@ -5,6 +5,7 @@ import (
 	"github.com/pegnet/OracleMiner"
 	"math/rand"
 	"time"
+	"fmt"
 )
 
 // GetOPR
@@ -56,7 +57,12 @@ func RunMiner(minerNumber int) {
 				time.Sleep(time.Duration(int(blocktime)/10) * time.Second)
 				miner.Stop()
 				started = false
-				OracleMiner.AddOpr(mstate, miner.BestNonce)
+				copy (mstate.OPR.Nonce[:],miner.BestNonce)
+				if mstate.OPR.ComputeDifficulty() > 0 {
+					OracleMiner.AddOpr(mstate, miner.BestNonce)
+				}else{
+					fmt.Println("miner ", mstate.MinerNumber,":  \"Man, didn't find a solution! Drat!\"")
+				}
 			}
 		case 0:
 			if funding {

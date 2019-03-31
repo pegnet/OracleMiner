@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/FactomProject/FactomCode/common"
 	"github.com/FactomProject/factom"
-	"github.com/pegnet/LXR256"
 	"github.com/pegnet/OracleRecord"
 	"time"
 )
@@ -103,7 +102,7 @@ func FundWallet(m *MinerState) (err error) {
 	bal, err := factom.GetECBalance(ecadr)
 	check(err)
 	// If we have the 1000 entry credits, then we are happy clams, and can move on!
-	if bal > 100 {
+	if bal > 500 {
 		return
 	}
 
@@ -111,10 +110,14 @@ func FundWallet(m *MinerState) (err error) {
 	rate, err := factom.GetRate()
 	check(err)
 
-	_, err = factom.NewTransaction("fundec")
+	for i:=0;i<15 ;i++ {
+		_, err = factom.NewTransaction("fundec")
+		if err == nil { break }
+		time.Sleep(100*time.Millisecond)
+	}
 	check(err)
 
-	fct2ec := uint64(100) * rate // Buy so many FCT (shift left 8 decimal digits to create a fixed point number)
+	fct2ec := uint64(2000) * rate // Buy so many FCT (shift left 8 decimal digits to create a fixed point number)
 	_, err = factom.AddTransactionInput("fundec", fctadr, fct2ec)
 	check(err)
 
@@ -138,6 +141,7 @@ func FundWallet(m *MinerState) (err error) {
 func CreatePegNetChain(mstate *MinerState) {
 	sECAdr := mstate.GetECAddress()
 	ec_adr, err := factom.FetchECAddress(sECAdr)
+	check(err)
 
 	// Create the first entry for the PegNetChain
 	sPegNetChainID := mstate.GetProtocolChain()
@@ -146,9 +150,22 @@ func CreatePegNetChain(mstate *MinerState) {
 
 	pegNetChain := factom.NewChain(e)
 
-	txid, err := factom.CommitChain(pegNetChain, ec_adr)
+	var txid string
+	for i:=0;i<1000; i++ {
+		txid, err = factom.CommitChain(pegNetChain, ec_adr)
+		if err == nil {
+			break
+		}
+		if i == 0 {
+			fmt.Println("Initialization... Waiting to write PegNet chain...")
+		}else{
+			fmt.Print(i*5 ," seconds ")
+		}
+		time.Sleep(5*time.Second)
+	}
+
 	check(err)
-	fmt.Println("Created network chain ", txid)
+	fmt.Println("\nCreated PegNet chain ", txid)
 	factom.RevealChain(pegNetChain)
 }
 
@@ -196,7 +213,7 @@ func AddAssetEntry(mstate *MinerState) {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	fmt.Println("Created network chain ", txid)
+	_ = txid
 	factom.RevealEntry(assetEntry)
 }
 
@@ -213,9 +230,23 @@ func CreateOPRChain(mstate *MinerState) {
 
 	oprChain := factom.NewChain(e)
 
-	txid, err := factom.CommitChain(oprChain, ec_adr)
+	var txid string
+	for i:=0;i<1000; i++ {
+		txid, err = factom.CommitChain(oprChain, ec_adr)
+		if err == nil {
+			break
+		}
+		if i == 0 {
+			fmt.Println("Initialization... Waiting to write Oracle Record Chain...")
+		}else{
+			fmt.Print(i*5 ," seconds ")
+		}
+		time.Sleep(5*time.Second)
+	}
+
 	check(err)
-	fmt.Println("Created Oracle Price Record chain ", txid)
+
+	fmt.Println("\nCreated Oracle Price Record chain ", txid)
 	factom.RevealChain(oprChain)
 }
 
@@ -223,17 +254,31 @@ func CreateOPRChain(mstate *MinerState) {
 // for the network.
 func AddOpr(mstate *MinerState, nonce []byte) {
 	opr := mstate.OPR
+
+
+
 	// Create the OPR Entry
 	// Create the first entry for the OPR Chain
 	oprChainID := mstate.GetOraclePriceRecordChain()
 	bOpr, err := opr.MarshalBinary()
+
+//	assetEntry := opr.GetEntry(mstate.GetOraclePriceRecordChain())
+//	_, err := factom.CommitEntry(assetEntry, opr.EC)
 	check(err)
+
+
+
 
 	entryExtIDs := [][]byte{nonce}
 	assetEntry := NewEntry(oprChainID, entryExtIDs, bOpr)
 
 	_, err = factom.CommitEntry(assetEntry, opr.EC)
 	check(err)
+
+
+//	assetEntry.Hash()
+
+
 	factom.RevealEntry(assetEntry)
 }
 
@@ -255,51 +300,58 @@ func GradeLastBlock(mstate *MinerState, opr *oprecord.OraclePriceRecord, dbht in
 	for i, ebentry := range eb.EntryList {
 		entry, err := factom.GetEntry(ebentry.EntryHash)
 		if err != nil {
-			fmt.Println(i, "Entry Nil")
+			fmt.Println(i, "Error Entry Nil")
 			continue
 		}
 		if len(entry.ExtIDs) != 1 {
-			fmt.Println(i, "ExtIDs not 1")
+			fmt.Println(i, "Error ExtIDs not 1")
 			continue
 		}
 		newOpr := new(oprecord.OraclePriceRecord)
 		err = newOpr.UnmarshalBinary(entry.Content)
 		if err != nil {
-			fmt.Println(i, "Error Unmarshalling")
+			fmt.Println(i, "Error Unmarshalling OPR")
 			continue
 		}
+
+		// Compute the entry hash on the OPR record
+		newOpr.GetEntry(mstate.GetOraclePriceRecordChain())
 
 		rec := append([]byte{}, entry.ExtIDs[0]...)
 		oprh := miner.HashFunction(entry.Content)
 		rec = append(rec, oprh...)
 
-		h := miner.HashFunction(rec)
-		diff := lxr.Difficulty(h)
-		if diff == 0 {
-			continue
-		}
+
 		copy(newOpr.Nonce[:], entry.ExtIDs[0])
 		copy(newOpr.OPRHash[:], oprh)
-		newOpr.Difficulty = diff
+
+		if newOpr.ComputeDifficulty() == 0 {
+			fmt.Println(i, "Error Difficulty is zero!")
+			continue
+		}
+
+
 		oprs = append(oprs, newOpr)
+
 	}
 
 	tobepaid, oprlist := oprecord.GradeBlock(oprs)
 	_, _ = tobepaid, oprlist
 	if len(tobepaid) > 0 {
-		copy(opr.WinningPreviousOPR[:], tobepaid[0].OPRHash[:])
+		copy(opr.WinningPreviousOPR[:], tobepaid[0].GetEntry(mstate.GetOraclePriceRecordChain()).Hash())
 
 		h := tobepaid[0].FactomDigitalID[:6]
 
-		if mstate.MinerNumber < 3 {
 			fmt.Printf("OPRs %3d tobepaid %3d winner %x\n", len(oprs), len(tobepaid), h)
 
 			if mstate.MinerNumber == 1 {
 				for _, op := range tobepaid {
 					fmt.Println(op.ShortString())
 				}
-			}
 		}
+	}
+	if mstate.MinerNumber == 1 {
+		fmt.Println(mstate.OPR.String())
 	}
 }
 
