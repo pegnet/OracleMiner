@@ -3,8 +3,8 @@ package main
 import (
 	"encoding/binary"
 	"github.com/pegnet/OracleMiner"
-	"time"
 	"math/rand"
+	"time"
 )
 
 // GetOPR
@@ -60,12 +60,12 @@ func RunMiner(minerNumber int) {
 			}
 		case 0:
 			if funding {
-				if rand.Intn(100)>95 {
-		OracleMiner.FundWallet(mstate)
-		}
-			funding = false
+				if rand.Intn(100) > 95 {
+					OracleMiner.FundWallet(mstate)
+				}
+				funding = false
 			}
-
+		}
 	}
 }
 
