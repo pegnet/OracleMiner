@@ -103,7 +103,7 @@ func FundWallet(m *MinerState) (err error) {
 	bal, err := factom.GetECBalance(ecadr)
 	check(err)
 	// If we have the 1000 entry credits, then we are happy clams, and can move on!
-	if bal > 1000 {
+	if bal > 100 {
 		return
 	}
 
@@ -114,7 +114,7 @@ func FundWallet(m *MinerState) (err error) {
 	_, err = factom.NewTransaction("fundec")
 	check(err)
 
-	fct2ec := uint64(1000) * rate // Buy so many FCT (shift left 8 decimal digits to create a fixed point number)
+	fct2ec := uint64(100) * rate // Buy so many FCT (shift left 8 decimal digits to create a fixed point number)
 	_, err = factom.AddTransactionInput("fundec", fctadr, fct2ec)
 	check(err)
 
