@@ -7,6 +7,7 @@ import (
 	"github.com/FactomProject/factom"
 	"github.com/pegnet/LXR256"
 	"github.com/pegnet/OracleRecord"
+	"time"
 )
 
 func InitNetwork(mstate *MinerState, minerNumber int, opr *oprecord.OraclePriceRecord) {
@@ -51,9 +52,15 @@ func InitNetwork(mstate *MinerState, minerNumber int, opr *oprecord.OraclePriceR
 		CreateOPRChain(mstate)
 	}
 
+	var entries []*factom.Entry
 	// Check that we have an asset entry
-	entries, err := factom.GetAllChainEntries(chainid)
-	check(err)
+	for {
+		entries, err = factom.GetAllChainEntries(chainid)
+		if err == nil {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
 	// I'm doing a cheap lambda function here because we are looking for a finish, and breaking
 	// if we find it.
 	func() {
@@ -181,9 +188,14 @@ func AddAssetEntry(mstate *MinerState) {
 	PegNetChainID := mstate.GetProtocolChain()
 
 	assetEntry := NewEntryStr(PegNetChainID, assets, "")
-
-	txid, err := factom.CommitEntry(assetEntry, ec_adr)
-	check(err)
+	txid := ""
+	for {
+		txid, err = factom.CommitEntry(assetEntry, ec_adr)
+		if err == nil {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 	fmt.Println("Created network chain ", txid)
 	factom.RevealEntry(assetEntry)
 }
@@ -231,7 +243,7 @@ func GradeLastBlock(mstate *MinerState, opr *oprecord.OraclePriceRecord, dbht in
 
 	var oprs []*oprecord.OraclePriceRecord
 
-	oprChainID := mstate.GetProtocolChain()
+	oprChainID := mstate.GetOraclePriceRecordChain()
 	// Get the last DirectoryBlock Merkle Root
 	ebMR, err := factom.GetChainHead(oprChainID)
 	check(err)
@@ -242,22 +254,29 @@ func GradeLastBlock(mstate *MinerState, opr *oprecord.OraclePriceRecord, dbht in
 		fmt.Printf("%s\n", ebMR)
 	}
 
-	for _, ebentry := range eb.EntryList {
+	fmt.Println(len(eb.EntryList)," records found")
+	for i, ebentry := range eb.EntryList {
 		entry, err := factom.GetEntry(ebentry.EntryHash)
 		if err != nil {
+			fmt.Println (i,"Entry Nil")
 			continue
 		}
 		if len(entry.ExtIDs) != 1 {
+			fmt.Println (i,"ExtIDs not 1")
 			continue
 		}
 		newOpr := new(oprecord.OraclePriceRecord)
 		err = newOpr.UnmarshalBinary(entry.Content)
 		if err != nil {
+			fmt.Println (i,"Error Unmarshalling")
 			continue
 		}
+		fmt.Println(newOpr.String())
+
 		rec := append([]byte{}, entry.ExtIDs[0]...)
 		oprh := miner.HashFunction(entry.Content)
 		rec = append(rec, oprh...)
+
 		h := miner.HashFunction(rec)
 		diff := lxr.Difficulty(h)
 		if diff == 0 {
@@ -275,7 +294,7 @@ func GradeLastBlock(mstate *MinerState, opr *oprecord.OraclePriceRecord, dbht in
 		copy(opr.WinningPreviousOPR[:], tobepaid[0].OPRHash[:])
 	}
 	if mstate.MinerNumber < 2 {
-		for _, op := range oprlist {
+		for _, op := range tobepaid {
 			fmt.Println(op.String())
 		}
 	}

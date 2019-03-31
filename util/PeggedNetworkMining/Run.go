@@ -1,11 +1,10 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
-	"github.com/FactomProject/factomd/common/primitives/random"
 	"github.com/pegnet/OracleMiner"
 	"time"
-	"encoding/binary"
 )
 
 // GetOPR
@@ -23,10 +22,11 @@ func GetOPR(state *OracleMiner.MinerState) []byte {
 }
 
 func RunMiner(minerNumber int) {
+	fmt.Print(" ",minerNumber)
 	mstate := new(OracleMiner.MinerState)
 	mstate.MinerNumber = minerNumber
 
-	mstate.OPR.SetChainID(random.RandByteSliceOfLen(32))
+	mstate.MinerNumber = minerNumber
 	miner := new(OracleMiner.Mine)
 	miner.Init()
 
@@ -64,9 +64,9 @@ func RunMiner(minerNumber int) {
 }
 
 func main() {
-	for i := 0; i < 1; i++ {
-		go RunMiner(i + 100)
-		time.Sleep(1 * time.Second)
+	for i := 0; i < 60; i++ {
+		go RunMiner(i + 1)
+		time.Sleep(500 * time.Millisecond)
 	}
 	for {
 		time.Sleep(1 * time.Second)
