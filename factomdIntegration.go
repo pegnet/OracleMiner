@@ -9,6 +9,7 @@ import (
 // FactomdMonitor
 // Running multiple Monitors is problematic and should be avoided if possible
 type FactomdMonitor struct {
+	root                    bool       // True if this is the root FactomMonitor
 	mutex                   sync.Mutex // Protect multiple parties accessing monitor data
 	lastminute              int64      // Last minute we got
 	lastblock               int64      // Last block we got
@@ -37,6 +38,13 @@ func (f *FactomdMonitor) GetBlockTime() int64 {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 	return f.directoryblockinseconds
+}
+
+// Returns the highest saved block
+func (f *FactomdMonitor) GetHighestSavedDBlock() int64 {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+	return f.directoryblockheight
 }
 
 // poll

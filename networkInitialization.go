@@ -122,7 +122,12 @@ func FundWallet(m *MinerState) (err error) {
 	check(err)
 
 	factom.AddTransactionECOutput("fundec", ecadr, fct2ec)
-	_, err = factom.AddTransactionFee("fundec", fctadr)
+
+	for i:=0;i<15 ;i++ {
+		_, err = factom.AddTransactionFee("fundec", fctadr)
+		if err == nil { break }
+		time.Sleep(100*time.Millisecond)
+	}
 	check(err)
 
 	_, err = factom.SignTransaction("fundec", false)
@@ -287,12 +292,29 @@ func GradeLastBlock(mstate *MinerState, opr *oprecord.OraclePriceRecord, dbht in
 	var oprs []*oprecord.OraclePriceRecord
 
 	oprChainID := mstate.GetOraclePriceRecordChain()
+
+	var eb *factom.EBlock
+
+	dblk,err := factom.GetDBlockByHeight(dbht)
+	if err != nil {
+		panic("Could not get the highest saved directory block.  "+err.Error())
+	}
+	dbentries := dblk.DBlock["dbentries"].([]interface{})
+	for _,idbentry := range dbentries {
+		dbentry := idbentry.(map[string]interface{})
+		for key, v := range dbentry {
+			if key == oprChainID {
+				eb, err = factom.GetEBlock(v.(string))
+			}
+		}
+	}
+
 	// Get the last DirectoryBlock Merkle Root
 	ebMR, err := factom.GetChainHead(oprChainID)
 	check(err)
 	// Get the last DirectoryBlock
-	eb, err := factom.GetEBlock(ebMR)
-	if err != nil {
+	eb, err = factom.GetEBlock(ebMR)
+	if err != nil || eb == nil {
 		fmt.Println(err)
 		fmt.Printf("%s\n", ebMR)
 	}
@@ -330,7 +352,6 @@ func GradeLastBlock(mstate *MinerState, opr *oprecord.OraclePriceRecord, dbht in
 			continue
 		}
 
-
 		oprs = append(oprs, newOpr)
 
 	}
@@ -340,18 +361,18 @@ func GradeLastBlock(mstate *MinerState, opr *oprecord.OraclePriceRecord, dbht in
 	if len(tobepaid) > 0 {
 		copy(opr.WinningPreviousOPR[:], tobepaid[0].GetEntry(mstate.GetOraclePriceRecordChain()).Hash())
 
-		h := tobepaid[0].FactomDigitalID[:6]
+		//h := tobepaid[0].FactomDigitalID[:6]
 
-			fmt.Printf("OPRs %3d tobepaid %3d winner %x\n", len(oprs), len(tobepaid), h)
+			//fmt.Printf("OPRs %3d tobepaid %3d winner %x\n", len(oprs), len(tobepaid), h)
 
 			if mstate.MinerNumber == 1 {
 				for _, op := range tobepaid {
 					fmt.Println(op.ShortString())
 				}
 		}
-	}
-	if mstate.MinerNumber == 1 {
-		fmt.Println(mstate.OPR.String())
+		if mstate.MinerNumber == 1 {
+			fmt.Println(tobepaid[0].String())
+		}
 	}
 }
 

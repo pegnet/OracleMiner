@@ -14,6 +14,7 @@ const protocolname = "zoints"
 
 type MinerState struct {
 	MinerNumber int                        // If running multiple miners, this is the number
+	Monitor     *FactomdMonitor			   // The facility that tracks what blocks we are processing
 	ConfigDir   string                     // Must end with a /
 	OPR         oprecord.OraclePriceRecord // The price record we mine against
 	Config      *config.Config             // Configuration file with data for mining and Oracle data
