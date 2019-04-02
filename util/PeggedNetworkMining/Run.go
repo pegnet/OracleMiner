@@ -77,7 +77,7 @@ func RunMiner(minerNumber int) {
 }
 
 func main() {
-	for i := 0; i < 60; i++ {
+	for i := 0; i < 30; i++ {
 		go RunMiner(i + 1)
 		time.Sleep(500 * time.Millisecond)
 	}

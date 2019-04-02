@@ -1,6 +1,7 @@
 package OracleMiner
 
 import (
+	"fmt"
 	"github.com/FactomProject/factom"
 	"sync"
 	"time"
@@ -80,12 +81,13 @@ func (f *FactomdMonitor) poll() {
 			// track how often we poll
 			f.polls++
 
-			// If we get an error, then report and break
+			// If we get an error, then report and try again
 			if err != nil {
 				f.status = err.Error()
-				panic("Error with getting minute.")
-
-				break
+				fmt.Println("Error with getting minute.")
+				f.mutex.Unlock()
+				time.Sleep(100*time.Millisecond)
+				continue
 			}
 			// If we got a different block time, consider that good and break
 			if f.minute != f.lastminute || f.directoryblockheight != f.lastblock {
