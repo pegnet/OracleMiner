@@ -110,10 +110,12 @@ func FundWallet(m *MinerState) (err error) {
 	rate, err := factom.GetRate()
 	check(err)
 
-	for i:=0;i<15 ;i++ {
+	for i := 0; i < 15; i++ {
 		_, err = factom.NewTransaction("fundec")
-		if err == nil { break }
-		time.Sleep(100*time.Millisecond)
+		if err == nil {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 	check(err)
 
@@ -123,10 +125,12 @@ func FundWallet(m *MinerState) (err error) {
 
 	factom.AddTransactionECOutput("fundec", ecadr, fct2ec)
 
-	for i:=0;i<15 ;i++ {
+	for i := 0; i < 15; i++ {
 		_, err = factom.AddTransactionFee("fundec", fctadr)
-		if err == nil { break }
-		time.Sleep(100*time.Millisecond)
+		if err == nil {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 	check(err)
 
@@ -156,17 +160,17 @@ func CreatePegNetChain(mstate *MinerState) {
 	pegNetChain := factom.NewChain(e)
 
 	var txid string
-	for i:=0;i<1000; i++ {
+	for i := 0; i < 1000; i++ {
 		txid, err = factom.CommitChain(pegNetChain, ec_adr)
 		if err == nil {
 			break
 		}
 		if i == 0 {
 			fmt.Println("Initialization... Waiting to write PegNet chain...")
-		}else{
-			fmt.Print(i*5 ," seconds ")
+		} else {
+			fmt.Print(i*5, " seconds ")
 		}
-		time.Sleep(5*time.Second)
+		time.Sleep(5 * time.Second)
 	}
 
 	check(err)
@@ -205,21 +209,25 @@ func AddAssetEntry(mstate *MinerState) {
 		"BitcoinCash,XBC,pXBC",
 		"Factom,FCT,pFCT",
 	}
-
 	// Create the first entry for the PegNetChain
 	PegNetChainID := mstate.GetProtocolChain()
-
 	assetEntry := NewEntryStr(PegNetChainID, assets, "")
-	txid := ""
-	for {
-		txid, err = factom.CommitEntry(assetEntry, ec_adr)
-		if err == nil {
-			break
+	h := assetEntry.Hash()
+	ae, err := factom.GetEntry(hex.EncodeToString(h))
+
+	if err != nil || ae == nil {
+		txid := ""
+		for {
+			txid, err = factom.CommitEntry(assetEntry, ec_adr)
+			if err == nil {
+				break
+			}
+			time.Sleep(100 * time.Millisecond)
 		}
-		time.Sleep(100 * time.Millisecond)
+		_ = txid
+		factom.RevealEntry(assetEntry)
 	}
-	_ = txid
-	factom.RevealEntry(assetEntry)
+
 }
 
 // The Pegged Network has a defining chain.  This function builds and returns the expected defining chain
@@ -236,17 +244,17 @@ func CreateOPRChain(mstate *MinerState) {
 	oprChain := factom.NewChain(e)
 
 	var txid string
-	for i:=0;i<1000; i++ {
+	for i := 0; i < 1000; i++ {
 		txid, err = factom.CommitChain(oprChain, ec_adr)
 		if err == nil {
 			break
 		}
 		if i == 0 {
 			fmt.Println("Initialization... Waiting to write Oracle Record Chain...")
-		}else{
-			fmt.Print(i*5 ," seconds ")
+		} else {
+			fmt.Print(i*5, " seconds ")
 		}
-		time.Sleep(5*time.Second)
+		time.Sleep(5 * time.Second)
 	}
 
 	check(err)
@@ -260,19 +268,14 @@ func CreateOPRChain(mstate *MinerState) {
 func AddOpr(mstate *MinerState, nonce []byte) {
 	opr := mstate.OPR
 
-
-
 	// Create the OPR Entry
 	// Create the first entry for the OPR Chain
 	oprChainID := mstate.GetOraclePriceRecordChain()
 	bOpr, err := opr.MarshalBinary()
 
-//	assetEntry := opr.GetEntry(mstate.GetOraclePriceRecordChain())
-//	_, err := factom.CommitEntry(assetEntry, opr.EC)
+	//	assetEntry := opr.GetEntry(mstate.GetOraclePriceRecordChain())
+	//	_, err := factom.CommitEntry(assetEntry, opr.EC)
 	check(err)
-
-
-
 
 	entryExtIDs := [][]byte{nonce}
 	assetEntry := NewEntry(oprChainID, entryExtIDs, bOpr)
@@ -280,112 +283,7 @@ func AddOpr(mstate *MinerState, nonce []byte) {
 	_, err = factom.CommitEntry(assetEntry, opr.EC)
 	check(err)
 
-
-//	assetEntry.Hash()
-
+	//	assetEntry.Hash()
 
 	factom.RevealEntry(assetEntry)
-}
-
-func GradeLastBlock(mstate *MinerState, opr *oprecord.OraclePriceRecord, dbht int64, miner *Mine) {
-
-	var oprs []*oprecord.OraclePriceRecord
-
-	oprChainID := mstate.GetOraclePriceRecordChain()
-
-	var eb *factom.EBlock
-
-	dblk,err := factom.GetDBlockByHeight(dbht)
-	if err != nil {
-		panic("Could not get the highest saved directory block.  "+err.Error())
-	}
-	dbentries := dblk.DBlock["dbentries"].([]interface{})
-	for _,idbentry := range dbentries {
-		dbentry := idbentry.(map[string]interface{})
-		for key, v := range dbentry {
-			if key == oprChainID {
-				eb, err = factom.GetEBlock(v.(string))
-			}
-		}
-	}
-
-	// Get the last DirectoryBlock Merkle Root
-	ebMR, err := factom.GetChainHead(oprChainID)
-	check(err)
-	// Get the last DirectoryBlock
-	eb, err = factom.GetEBlock(ebMR)
-	if err != nil || eb == nil {
-		fmt.Println(err)
-		fmt.Printf("%s\n", ebMR)
-	}
-
-	for i, ebentry := range eb.EntryList {
-		entry, err := factom.GetEntry(ebentry.EntryHash)
-		if err != nil {
-			fmt.Println(i, "Error Entry Nil")
-			continue
-		}
-		if len(entry.ExtIDs) != 1 {
-			fmt.Println(i, "Error ExtIDs not 1")
-			continue
-		}
-		newOpr := new(oprecord.OraclePriceRecord)
-		err = newOpr.UnmarshalBinary(entry.Content)
-		if err != nil {
-			fmt.Println(i, "Error Unmarshalling OPR")
-			continue
-		}
-
-		// Compute the entry hash on the OPR record
-		newOpr.GetEntry(mstate.GetOraclePriceRecordChain())
-
-		rec := append([]byte{}, entry.ExtIDs[0]...)
-		oprh := miner.HashFunction(entry.Content)
-		rec = append(rec, oprh...)
-
-
-		copy(newOpr.Nonce[:], entry.ExtIDs[0])
-		copy(newOpr.OPRHash[:], oprh)
-
-		if newOpr.ComputeDifficulty() == 0 {
-			fmt.Println(i, "Error Difficulty is zero!")
-			continue
-		}
-
-		oprs = append(oprs, newOpr)
-
-	}
-
-	tobepaid, oprlist := oprecord.GradeBlock(oprs)
-	_, _ = tobepaid, oprlist
-	if len(tobepaid) > 0 {
-		copy(opr.WinningPreviousOPR[:], tobepaid[0].GetEntry(mstate.GetOraclePriceRecordChain()).Hash())
-
-		//h := tobepaid[0].FactomDigitalID[:6]
-
-			//fmt.Printf("OPRs %3d tobepaid %3d winner %x\n", len(oprs), len(tobepaid), h)
-
-			if mstate.MinerNumber == 1 {
-				for _, op := range tobepaid {
-					fmt.Println(op.ShortString())
-				}
-		}
-		if mstate.MinerNumber == 1 {
-			fmt.Println(tobepaid[0].String())
-		}
-	}
-}
-
-func NewEntry(chainID string, extIDs [][]byte, content []byte) *factom.Entry {
-	e := factom.Entry{ChainID: chainID, ExtIDs: extIDs, Content: content}
-	return &e
-}
-
-func NewEntryStr(chainID string, extIDs []string, content string) *factom.Entry {
-	var b [][]byte
-	for _, str := range extIDs {
-		b = append(b, []byte(str))
-	}
-	e := factom.Entry{ChainID: chainID, ExtIDs: b, Content: []byte(content)}
-	return &e
 }
