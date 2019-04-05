@@ -9,6 +9,7 @@ type hashFunction func([]byte) []byte
 
 type Mine struct {
 	started        bool         // We are mining
+	Dbht           int32        // Height that we are mining at
 	Response       chan int     // Returns 0 when the MinerNumber stops
 	Control        chan int     // sending any int to the Mine will stop mining
 	OPR            []byte       // The oracle Record that we were mining

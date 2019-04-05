@@ -14,6 +14,3 @@ func loadConfig(filepath string) *config.Config {
 	}
 	return c
 }
-
-
-

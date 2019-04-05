@@ -2,6 +2,7 @@ package OracleMiner
 
 import (
 	"github.com/FactomProject/factom"
+	"math/rand"
 	"sync"
 	"time"
 )
@@ -9,6 +10,7 @@ import (
 // FactomdMonitor
 // Running multiple Monitors is problematic and should be avoided if possible
 type FactomdMonitor struct {
+	root                    bool       // True if this is the root FactomMonitor
 	mutex                   sync.Mutex // Protect multiple parties accessing monitor data
 	lastminute              int64      // Last minute we got
 	lastblock               int64      // Last block we got
@@ -37,6 +39,13 @@ func (f *FactomdMonitor) GetBlockTime() int64 {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
 	return f.directoryblockinseconds
+}
+
+// Returns the highest saved block
+func (f *FactomdMonitor) GetHighestSavedDBlock() int64 {
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+	return f.directoryblockheight
 }
 
 // poll
@@ -69,13 +78,31 @@ func (f *FactomdMonitor) poll() {
 				f.roundtimeout,
 				err = factom.GetCurrentMinute()
 
+			for i := 0; i < 1000 && err != nil; i++ {
+				time.Sleep(time.Duration(rand.Intn(50)+50) * time.Millisecond)
+				// Do our poll
+				f.leaderheight,
+					f.directoryblockheight,
+					f.minute,
+					f.currentblockstarttime,
+					f.currentminutestarttime,
+					f.currenttime,
+					f.directoryblockinseconds,
+					f.stalldetected,
+					f.faulttimeout,
+					f.roundtimeout,
+					err = factom.GetCurrentMinute()
+				if err == nil {
+					break
+				}
+			}
 			// track how often we poll
 			f.polls++
 
 			// If we get an error, then report and break
 			if err != nil {
 				f.status = err.Error()
-				panic("Error with getting minute.")
+				panic("Error with getting minute. " + f.status)
 
 				break
 			}
