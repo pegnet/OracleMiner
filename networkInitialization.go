@@ -146,7 +146,7 @@ func CreatePegNetChain(mstate *MinerState, opr *oprecord.OraclePriceRecord) {
 func AddAssetEntry(opr *oprecord.OraclePriceRecord) {
 	fmt.Println("Adding AssetEntry")
 	// Create an entry credit address
-	ec_adr, err := factom.FetchECAddress("EC3TsJHUs8bzbbVnratBafub6toRYdgzgbR7kWwCW4tqbmyySRmg")
+	ec_adr, _ := factom.FetchECAddress("EC3TsJHUs8bzbbVnratBafub6toRYdgzgbR7kWwCW4tqbmyySRmg")
 
 	assets := []string{
 		"Asset Entry",
@@ -177,8 +177,7 @@ func AddAssetEntry(opr *oprecord.OraclePriceRecord) {
 
 	assetEntry := NewEntryStr(PegNetChainID, assets, "")
 
-	txid, err := factom.CommitEntry(assetEntry, ec_adr)
-	check(err)
+	txid, _ := factom.CommitEntry(assetEntry, ec_adr)
 	fmt.Println("Created network chain ", txid)
 	factom.RevealEntry(assetEntry)
 }
