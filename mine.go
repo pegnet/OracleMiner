@@ -1,6 +1,7 @@
 package OracleMiner
 
 import (
+	"fmt"
 	"github.com/FactomProject/factomd/common/primitives/random"
 	"github.com/pegnet/LXR256"
 )
@@ -8,6 +9,7 @@ import (
 type hashFunction func([]byte) []byte
 
 type Mine struct {
+	MinerNum       int          // When running many miners, the number of the miner that is this one.
 	started        bool         // We are mining
 	Dbht           int32        // Height that we are mining at
 	Response       chan int     // Returns 0 when the MinerNumber stops
@@ -117,6 +119,7 @@ func (m *Mine) Mine(opr []byte) {
 			m.BestDifficulty = d
 			m.BestNonce = append(m.BestNonce[:0], nonceOpr[:32]...)
 			m.BestHash = append(m.BestHash[:0], try...)
+			fmt.Printf("Miner %3d Difficulty %15d\n",m.MinerNum,d)
 		}
 	}
 }

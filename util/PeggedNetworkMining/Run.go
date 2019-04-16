@@ -28,13 +28,14 @@ func RunMiner(minerNumber int) {
 
 	mstate.MinerNumber = minerNumber
 	miner := new(OracleMiner.Mine)
+	miner.MinerNum = minerNumber
 	miner.Init()
 
 	mstate.Monitor = new(OracleMiner.FactomdMonitor)
 
 	var blocktime int64
 	alert := mstate.Monitor.Start()
-
+    _ = blocktime
 	mstate.LoadConfig()
 	OracleMiner.InitNetwork(mstate, minerNumber, &mstate.OPR)
 
@@ -44,7 +45,7 @@ func RunMiner(minerNumber int) {
 		min := <-alert
 		block := <-alert
 		switch min {
-		case 2:
+		case 1:
 			miner.Dbht = int32(block + 1)
 			if started == false {
 				OracleMiner.GradeLastBlock(mstate, &mstate.OPR, int64(block), miner)
@@ -54,10 +55,9 @@ func RunMiner(minerNumber int) {
 				started = true
 				funding = true
 			}
-		case 8:
+		case 9:
 			if started {
 				// sleep for half a block time.
-				time.Sleep(time.Duration(int(blocktime)/10) * time.Second)
 				miner.Stop()
 				started = false
 				copy(mstate.OPR.Nonce[:], miner.BestNonce)

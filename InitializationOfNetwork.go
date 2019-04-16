@@ -272,12 +272,9 @@ func AddOpr(mstate *MinerState, nonce []byte) {
 	// Create the first entry for the OPR Chain
 	oprChainID := mstate.GetOraclePriceRecordChain()
 	bOpr, err := opr.MarshalBinary()
-
-	//	assetEntry := opr.GetEntry(mstate.GetOraclePriceRecordChain())
-	//	_, err := factom.CommitEntry(assetEntry, opr.EC)
 	check(err)
 
-	entryExtIDs := [][]byte{nonce}
+	entryExtIDs := [][]byte{opr.Nonce[:]}
 	assetEntry := NewEntry(oprChainID, entryExtIDs, bOpr)
 
 	_, err = factom.CommitEntry(assetEntry, opr.EC)
