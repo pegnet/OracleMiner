@@ -2,20 +2,73 @@ package OracleMiner
 
 import (
 	"github.com/FactomProject/factomd/common/primitives/random"
-	"github.com/PaulSnow/LXR256"
+	"github.com/pegnet/LXR256"
 )
 
-type Mine struct {
-	Finished       bool     // Miner sets Finished with the process is killed.
-	Control        chan int // sending any int to the Mine will stop mining
-	OPR            []byte   // The oracle Record that we were mining
-	OprHash        []byte   // The hash of the oracle record
-	BestDifficulty uint64   // Highest Difference Found
-	BestNonce      []byte   // The Nonce that produced the bestDifference
-	BestHash       []byte   // The best hash we found (to check the Best Difficulty against)
-	Hashcnt        int      // Count of hash rounds performed.
+type hashFunction func([]byte) []byte
+
+var lx lxr.LXRHash
+
+func init() {
+	lx.Init(0x123412341234, 10240000, 256, 5)
 }
 
+type Mine struct {
+	MinerNum       int          // When running many miners, the number of the miner that is this one.
+	started        bool         // We are mining
+	Dbht           int32        // Height that we are mining at
+	Response       chan int     // Returns 0 when the MinerNumber stops
+	Control        chan int     // sending any int to the Mine will stop mining
+	OPR            []byte       // The oracle Record that we were mining
+	OprHash        []byte       // The hash of the oracle record
+	BestDifficulty uint64       // Highest Difference Found
+	BestNonce      []byte       // The Nonce that produced the bestDifference
+	BestHash       []byte       // The best hash we found (to check the Best Difficulty against)
+	Hashcnt        int          // Count of hash rounds performed.
+	HashFunction   hashFunction // The Hash function we will be using to mine
+}
+
+func (m *Mine) Init() {
+	m.BestDifficulty = 0
+	m.Hashcnt = 0
+	m.Response = make(chan int, 10)
+	m.Control = make(chan int, 10)
+	m.OPR = m.OPR[:0]
+	m.OprHash = m.OPR[:0]
+	m.BestNonce = m.OPR[:0]
+	m.BestHash = m.OPR[:0]
+
+	// create an LXRHash function for the Lookup XoR hash.
+	m.HashFunction = func(src []byte) []byte {
+		return lx.Hash(src)
+	}
+}
+
+// Start mining on a given OPR
+func (m *Mine) Start(opr []byte) {
+	// Make sure the MinerNumber is stopped.
+	if m.started {
+		m.Stop()
+		m.started = false
+	}
+	m.Init()
+	m.started = true
+	go m.Mine(opr)
+}
+
+func (m *Mine) Stop() {
+	// Only stop a running MinerNumber
+	if m.started {
+		// Signal the mining process to stop
+		m.Control <- 0
+		// Wait for it to stop
+		<-m.Response
+		// Clear the response channel to indicate the MinerNumber is stopped.
+		m.started = false
+	}
+}
+
+// Create a nonce of eight bytes of zeros followed by 24 bytes of random values
 func GetFirstNonce() []byte {
 	// Start with 8 bytes of zero
 	nonce := []byte{0, 0, 0, 0, 0, 0, 0, 0}
@@ -24,19 +77,17 @@ func GetFirstNonce() []byte {
 	return nonce
 }
 
-type hashFunction func([]byte) []byte
-
 // Mine a given Oracle Price Record (OPR)
-func (m *Mine) Mine(hash hashFunction, opr []byte) {
+func (m *Mine) Mine(opr []byte) {
 
 	m.OPR = opr
-	m.OprHash = hash(opr)
+	m.OprHash = m.HashFunction(opr)
 	m.Hashcnt = 0
 
 	// Clear out some variables in case the Mine struct is being reused
 	m.BestDifficulty = 0
-	m.BestNonce = m.BestNonce[:0]
-	m.BestHash = m.BestHash[:0]
+	m.BestNonce = []byte{}
+	m.BestHash = []byte{}
 
 	// Put my nonce and Opr together... We hash them both
 	nonceOpr := GetFirstNonce()
@@ -47,7 +98,7 @@ func (m *Mine) Mine(hash hashFunction, opr []byte) {
 		// The process ends when signaled.
 		select {
 		case <-m.Control:
-			m.Finished = true
+			m.Response <- 0
 			return
 		default:
 		}
@@ -61,7 +112,7 @@ func (m *Mine) Mine(hash hashFunction, opr []byte) {
 		}
 
 		m.Hashcnt++
-		try := hash(nonceOpr)
+		try := m.HashFunction(nonceOpr)
 
 		d := lxr.Difficulty(try)
 		if d == 0 {

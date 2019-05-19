@@ -8,6 +8,9 @@ and/or the block times (i.e. assume 10 second blocks, 1 minute blocks, etc.)
 With every block, the hash rate over the block, the difficulty found, and other
 statistics are printed.
 
+**This code runs separately from a factomd node.**  This just tests hashing, Pow
+and other code separate and apart from factomd integration.
+
 TODO:
 
 Write unit tests, parametrise the block time and miner processes.
