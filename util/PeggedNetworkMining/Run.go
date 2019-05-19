@@ -35,7 +35,7 @@ func RunMiner(minerNumber int) {
 
 	var blocktime int64
 	alert := mstate.Monitor.Start()
-    _ = blocktime
+	_ = blocktime
 	mstate.LoadConfig()
 	OracleMiner.InitNetwork(mstate, minerNumber, &mstate.OPR)
 

@@ -1,7 +1,6 @@
 package OracleMiner
 
 import (
-	"fmt"
 	"github.com/FactomProject/factomd/common/primitives/random"
 	"github.com/pegnet/LXR256"
 )
@@ -11,7 +10,7 @@ type hashFunction func([]byte) []byte
 var lx lxr.LXRHash
 
 func init() {
-	lx.Init(0x123412341234, 10240000,256, 5)
+	lx.Init(0x123412341234, 10240000, 256, 5)
 }
 
 type Mine struct {
@@ -123,7 +122,6 @@ func (m *Mine) Mine(opr []byte) {
 			m.BestDifficulty = d
 			m.BestNonce = append(m.BestNonce[:0], nonceOpr[:32]...)
 			m.BestHash = append(m.BestHash[:0], try...)
-			fmt.Printf("Miner %3d Difficulty %15d\n",m.MinerNum,d)
 		}
 	}
 }

@@ -181,7 +181,7 @@ func CreatePegNetChain(mstate *MinerState) {
 // The Pegged Network has a defining chain.  This function builds and returns the expected defining chain
 // for the network.
 func AddAssetEntry(mstate *MinerState) {
-	fmt.Println("Adding AssetEntry")
+
 	// Create an entry credit address
 	sECAdr := mstate.GetECAddress()
 	ec_adr, err := factom.FetchECAddress(sECAdr)
