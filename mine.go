@@ -8,6 +8,12 @@ import (
 
 type hashFunction func([]byte) []byte
 
+var lx lxr.LXRHash
+
+func init() {
+	lx.Init(0x123412341234, 10240000,256, 5)
+}
+
 type Mine struct {
 	MinerNum       int          // When running many miners, the number of the miner that is this one.
 	started        bool         // We are mining
@@ -34,8 +40,6 @@ func (m *Mine) Init() {
 	m.BestHash = m.OPR[:0]
 
 	// create an LXRHash function for the Lookup XoR hash.
-	lx := new(lxr.LXRHash)
-	lx.Init()
 	m.HashFunction = func(src []byte) []byte {
 		return lx.Hash(src)
 	}
