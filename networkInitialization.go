@@ -6,6 +6,7 @@ import (
 	"github.com/FactomProject/FactomCode/common"
 	"github.com/FactomProject/factom"
 	"github.com/pegnet/OracleRecord"
+	"math/rand"
 	"time"
 )
 
@@ -177,7 +178,7 @@ func CreatePegNetChain(mstate *MinerState) {
 // The Pegged Network has a defining chain.  This function builds and returns the expected defining chain
 // for the network.
 func AddAssetEntry(mstate *MinerState) {
-	fmt.Println("Adding AssetEntry")
+	fmt.Print("miner ",mstate.MinerNumber," ")
 	// Create an entry credit address
 	sECAdr := mstate.GetECAddress()
 	ec_adr, err := factom.FetchECAddress(sECAdr)
@@ -216,7 +217,7 @@ func AddAssetEntry(mstate *MinerState) {
 		if err == nil {
 			break
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	}
 	_ = txid
 	factom.RevealEntry(assetEntry)
@@ -246,7 +247,7 @@ func CreateOPRChain(mstate *MinerState) {
 		}else{
 			fmt.Print(i*5 ," seconds ")
 		}
-		time.Sleep(5*time.Second)
+		time.Sleep(1*time.Second)
 	}
 
 	check(err)
@@ -278,6 +279,11 @@ func AddOpr(mstate *MinerState, nonce []byte) {
 	assetEntry := NewEntry(oprChainID, entryExtIDs, bOpr)
 
 	_, err = factom.CommitEntry(assetEntry, opr.EC)
+	for i:=0;i<1000&&err!=nil;i++{
+		time.Sleep(time.Duration(rand.Intn(50)+50)*time.Millisecond)
+		_, err = factom.CommitEntry(assetEntry, opr.EC)
+		if err == nil { break }
+	}
 	check(err)
 
 
@@ -296,9 +302,15 @@ func GradeLastBlock(mstate *MinerState, opr *oprecord.OraclePriceRecord, dbht in
 	var eb *factom.EBlock
 
 	dblk,err := factom.GetDBlockByHeight(dbht)
+	for i:=0; i < 15 && err != nil;i++{
+		time.Sleep(100*time.Millisecond)
+		dblk,err = factom.GetDBlockByHeight(dbht)
+		if err == nil {break}
+	}
 	if err != nil {
 		panic("Could not get the highest saved directory block.  "+err.Error())
 	}
+
 	dbentries := dblk.DBlock["dbentries"].([]interface{})
 	for _,idbentry := range dbentries {
 		dbentry := idbentry.(map[string]interface{})
@@ -311,9 +323,21 @@ func GradeLastBlock(mstate *MinerState, opr *oprecord.OraclePriceRecord, dbht in
 
 	// Get the last DirectoryBlock Merkle Root
 	ebMR, err := factom.GetChainHead(oprChainID)
+	for i:=0;i<1000 && err == nil; i++ {
+		time.Sleep(time.Duration(rand.Intn(50)+50)*time.Millisecond)
+		ebMR, err = factom.GetChainHead(oprChainID)
+		if err == nil {break}
+	}
 	check(err)
 	// Get the last DirectoryBlock
 	eb, err = factom.GetEBlock(ebMR)
+	for i:=0; i < 15 && (err != nil || eb == nil );i++ {
+		eb, err = factom.GetEBlock(ebMR)
+		if err == nil {
+			break
+		}
+		time.Sleep(100*time.Millisecond)
+	}
 	if err != nil || eb == nil {
 		fmt.Println(err)
 		fmt.Printf("%s\n", ebMR)

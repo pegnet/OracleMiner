@@ -43,7 +43,7 @@ func RunMiner(minerNumber int) {
 		min := <-alert
 		block := <-alert
 		switch min {
-		case 1:
+		case 2:
 			if started == false {
 				OracleMiner.GradeLastBlock(mstate, &mstate.OPR, int64(block), miner)
 				blocktime = mstate.Monitor.GetBlockTime()
@@ -52,7 +52,7 @@ func RunMiner(minerNumber int) {
 				started = true
 				funding = true
 			}
-		case 8:
+		case 7:
 			if started {
 				// sleep for half a block time.
 				time.Sleep(time.Duration(int(blocktime)/10) * time.Second)
