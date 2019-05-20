@@ -31,7 +31,7 @@ func GradeLastBlock(mstate *MinerState, opr *oprecord.OraclePriceRecord, dbht in
 			continue
 		}
 		if len(entry.ExtIDs) != 1 {
-			fmt.Println(i, "Error ExtIDs not 1")
+			fmt.Println(i, "skipping ExtIDs not 1")
 			continue
 		}
 		newOpr := new(oprecord.OraclePriceRecord)

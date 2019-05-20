@@ -18,6 +18,9 @@ func InitNetwork(mstate *MinerState, minerNumber int, opr *oprecord.OraclePriceR
 	}
 	opr.SetChainID(BPegNetChainID)
 
+	Coinbase := mstate.GetCoinbasePNTAddress()
+	opr.SetCoinbasePNTAddress(Coinbase)
+	
 	bOprChainID, err := hex.DecodeString(mstate.GetProtocolChain())
 	if err != nil {
 		panic("No OPR Chain found in config file")

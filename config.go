@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const protocolname = "zoints"
+const protocolname = "pegnet"
 
 type MinerState struct {
 	MinerNumber int                        // If running multiple miners, this is the number
@@ -44,6 +44,14 @@ func (m *MinerState) LoadConfig() {
 func (m *MinerState) GetECAddress() string {
 	if str, err := m.Config.String("Miner.ECAddress"); err != nil {
 		panic("No Entry Credit address in Config" + err.Error())
+	} else {
+		return str
+	}
+}
+
+func (m *MinerState) GetCoinbasePNTAddress() string {
+	if str, err := m.Config.String("Miner.CoinbasePNTAddress"); err != nil {
+		panic("No Coinbase PNT Address in Config" + err.Error())
 	} else {
 		return str
 	}
