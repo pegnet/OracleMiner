@@ -3,15 +3,10 @@ package OracleMiner
 import (
 	"github.com/FactomProject/factomd/common/primitives/random"
 	"github.com/pegnet/LXR256"
+	"github.com/pegnet/OracleRecord"
 )
 
 type hashFunction func([]byte) []byte
-
-var lx lxr.LXRHash
-
-func init() {
-	lx.Init(0x123412341234, 10240000, 256, 5)
-}
 
 type Mine struct {
 	MinerNum       int          // When running many miners, the number of the miner that is this one.
@@ -40,7 +35,7 @@ func (m *Mine) Init() {
 
 	// create an LXRHash function for the Lookup XoR hash.
 	m.HashFunction = func(src []byte) []byte {
-		return lx.Hash(src)
+		return oprecord.LX.Hash(src)
 	}
 }
 

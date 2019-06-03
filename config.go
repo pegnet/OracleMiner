@@ -8,6 +8,7 @@ import (
 	"github.com/zpatrick/go-config"
 	"os/user"
 	"strings"
+	"github.com/FactomProject/btcutil/base58"
 )
 
 const protocolname = "pegnet"
@@ -51,7 +52,7 @@ func (m *MinerState) GetECAddress() string {
 
 func (m *MinerState) GetCoinbasePNTAddress() string {
 	if str, err := m.Config.String("Miner.CoinbasePNTAddress"); err != nil {
-		panic("No Coinbase PNT Address in Config" + err.Error())
+		panic(fmt.Sprintf("Miner %d No Coinbase PNT Address in Config %v",m.MinerNumber,err.Error() ))
 	} else {
 		return str
 	}
@@ -80,7 +81,7 @@ func (m *MinerState) GetProtocolChainExtIDs() []string {
 // in this chain.
 func (m *MinerState) GetProtocolChain() string {
 	chainid := factom.ComputeChainIDFromStrings(m.GetProtocolChainExtIDs())
-	return hex.EncodeToString(chainid)
+	return base58.Encode(chainid)
 }
 
 func (m *MinerState) GetOraclePriceRecordExtIDs() []string {
@@ -105,19 +106,17 @@ func (m *MinerState) GetOraclePriceRecordChain() string {
 // Returns a pointer to a string for the chainID.  Takes the raw chain
 // if specified, but if not, returns the chainID computed from the fields.
 // If no chainID is specified in the config file, a nil is returned.
-func (m *MinerState) GetIdentityChainID() string {
-	chainID, err := m.Config.String("Miner.IdentityChain")
-	if err != nil || len(chainID) == 0 {
-		fieldscomma, err := m.Config.String("Miner.IdentityChainFields")
-		fields := strings.Split(fieldscomma, ",")
-		if err != nil || len(fields) == 0 {
-			panic("Could not find the Identity Chain ID or Identity Chain Fields for the miner")
-		}
-		if len(fields) == 1 && string(fields[0]) == "prototype" {
-			fields = append(fields, fmt.Sprintf("miner%03d", m.MinerNumber))
-		}
-		bchainID := factom.ComputeChainIDFromStrings(fields)
-		return hex.EncodeToString(bchainID)
+func (m *MinerState) GetIdentityChainID() []string {
+	chainID58, err := m.Config.String("Miner.IdentityChain")
+	if err != nil || len(chainID58) == 0 {
+
+			panic("Config file has no Miner.IdentityChain specified")
+
 	}
-	return chainID
+	fields := strings.Split(chainID58, ",")
+	if len(fields) == 1 && string(fields[0]) == "prototype" {
+		fields = append(fields, fmt.Sprintf("miner%03d", m.MinerNumber))
+		}
+
+	return fields
 }

@@ -3,35 +3,35 @@ package OracleMiner
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/FactomProject/FactomCode/common"
 	"github.com/FactomProject/factom"
 	"github.com/pegnet/OracleRecord"
 	"time"
+	"encoding/json"
+	"github.com/FactomProject/btcutil/base58"
+	"sync"
 )
+
+var NetworkMutex sync.Mutex
 
 func InitNetwork(mstate *MinerState, minerNumber int, opr *oprecord.OraclePriceRecord) {
 
+	NetworkMutex.Lock()
+	defer NetworkMutex.Unlock()
+
 	PegNetChain := mstate.GetProtocolChain()
-	BPegNetChainID, err := hex.DecodeString(PegNetChain)
-	if err != nil {
-		panic("Could not decode the protocol chain:" + err.Error())
-	}
-	opr.SetChainID(BPegNetChainID)
+	opr.SetChainID(PegNetChain)
 
 	Coinbase := mstate.GetCoinbasePNTAddress()
 	opr.SetCoinbasePNTAddress(Coinbase)
 
-	bOprChainID, err := hex.DecodeString(mstate.GetProtocolChain())
-	if err != nil {
+	bOprChainID := base58.Decode(mstate.GetProtocolChain())
+	if len(bOprChainID)==0 {
 		panic("No OPR Chain found in config file")
 	}
 
 	did := mstate.GetIdentityChainID()
-	BFactomDigitalID, _ := hex.DecodeString(did)
 
-	opr.SetFactomDigitalID(BFactomDigitalID)
-
-	opr.SetVersionEntryHash(common.Sha([]byte("an entry")).Bytes())
+	opr.SetFactomDigitalID(did)
 
 	sECAdr := mstate.GetECAddress()
 	ecAdr, err := factom.FetchECAddress(sECAdr)
@@ -43,47 +43,29 @@ func InitNetwork(mstate *MinerState, minerNumber int, opr *oprecord.OraclePriceR
 	opr.EC = ecAdr
 
 	FundWallet(mstate)
-
+	created := false
 	// First check if the network has been initialized.  If it hasn't, then create all
 	// the initial structures.  This is only needed while testing.
-	chainid := mstate.GetProtocolChain()
+	chainid := hex.EncodeToString(base58.Decode(mstate.GetProtocolChain()))
 	if !factom.ChainExists(chainid) {
+		created = true
 		CreatePegNetChain(mstate)
 	}
 	chainid = mstate.GetOraclePriceRecordChain()
 	if !factom.ChainExists(chainid) {
+		created = true
 		CreateOPRChain(mstate)
 	}
-
-	var entries []*factom.Entry
-	// Check that we have an asset entry
-	for {
-		entries, err = factom.GetAllChainEntries(chainid)
-		if err == nil {
-			break
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-	// I'm doing a cheap lambda function here because we are looking for a finish, and breaking
-	// if we find it.
-	func() {
-		for _, entry := range entries {
-			// We are looking for the first Asset Entry.  If we upgrade the network
-			// we will have to search for the 2nd or 3rd, or whatever.  Upgrades will
-			// be determined by the wallet code and the miners.
-			if len(entry.ExtIDs) > 0 && string(entry.ExtIDs[0]) == "Asset Entry" {
-				// If we have the Asset Entry, set that hash
-				opr.SetVersionEntryHash(entry.Hash())
-				return
-			}
-		}
-		AddAssetEntry(mstate)
-	}()
 
 	// Check for and create the Oracle Price Records Chain
 	chainid = hex.EncodeToString(bOprChainID)
 	if !factom.ChainExists(chainid) {
+		created = true
 		CreateOPRChain(mstate)
+	}
+
+	if created {
+		time.Sleep(time.Duration(mstate.Monitor.directoryblockinseconds)*time.Second)
 	}
 	return
 }
@@ -268,16 +250,16 @@ func CreateOPRChain(mstate *MinerState) {
 
 // The Pegged Network has a defining chain.  This function builds and returns the expected defining chain
 // for the network.
-func AddOpr(mstate *MinerState, nonce []byte) {
+func AddOpr(mstate *MinerState) {
 	opr := mstate.OPR
 
 	// Create the OPR Entry
 	// Create the first entry for the OPR Chain
 	oprChainID := mstate.GetOraclePriceRecordChain()
-	bOpr, err := opr.MarshalBinary()
+	bOpr, err := json.Marshal(opr)
 	check(err)
 
-	entryExtIDs := [][]byte{opr.Nonce[:]}
+	entryExtIDs := [][]byte{[]byte(opr.Nonce)}
 	assetEntry := NewEntry(oprChainID, entryExtIDs, bOpr)
 
 	_, err = factom.CommitEntry(assetEntry, opr.EC)
