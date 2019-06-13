@@ -1,5 +1,5 @@
 # OracleMiner
-This code has been merged into the OracleMiner Repository.  This repository is deprecated.
+**This code has been merged into the OracleMiner Repository.  This repository is deprecated.**
 
 API to launch and mine Oracle values for the PegNet
 
