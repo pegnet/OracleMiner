@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/FactomProject/factom"
 	"github.com/pegnet/OracleRecord"
+	"encoding/json"
+	"github.com/FactomProject/btcutil/base58"
 )
 
 func GradeLastBlock(mstate *MinerState, opr *oprecord.OraclePriceRecord, dbht int64, miner *Mine) {
@@ -24,6 +26,19 @@ func GradeLastBlock(mstate *MinerState, opr *oprecord.OraclePriceRecord, dbht in
 		fmt.Printf("%s\n", ebMR)
 	}
 
+	// todo: Make this code a bit more robust
+	// What we really want to do here is search backwards for the last valid block.  We could use
+	// some intelligence when some block heights didn't give us any valid data.
+
+	// The first block where we build the chains for the PegNet can't be used to mine.
+	if eb.Header.BlockSequenceNumber == 0 {
+		if mstate.MinerNumber==1 {
+			fmt.Println("No previous mining data found")
+		}
+		return
+	}
+
+
 	for i, ebentry := range eb.EntryList {
 		entry, err := factom.GetEntry(ebentry.EntryHash)
 		if err != nil {
@@ -35,7 +50,7 @@ func GradeLastBlock(mstate *MinerState, opr *oprecord.OraclePriceRecord, dbht in
 			continue
 		}
 		newOpr := new(oprecord.OraclePriceRecord)
-		err = newOpr.UnmarshalBinary(entry.Content)
+		err = json.Unmarshal(entry.Content,&newOpr)
 		if err != nil {
 			fmt.Println(i, "Error Unmarshalling OPR")
 			continue
@@ -44,7 +59,7 @@ func GradeLastBlock(mstate *MinerState, opr *oprecord.OraclePriceRecord, dbht in
 			//continue
 		}
 		newOpr.Entry = entry
-		copy(newOpr.Nonce[:], entry.ExtIDs[0])
+		newOpr.Nonce = string(entry.ExtIDs[0])
 
 		if newOpr.ComputeDifficulty() == 0 {
 			fmt.Println(i, "Error Difficulty is zero!")
@@ -58,7 +73,9 @@ func GradeLastBlock(mstate *MinerState, opr *oprecord.OraclePriceRecord, dbht in
 	tobepaid, oprlist := oprecord.GradeBlock(oprs)
 	_, _ = tobepaid, oprlist
 	if len(tobepaid) > 0 {
-		copy(opr.WinningPreviousOPR[:], tobepaid[0].GetEntry(mstate.GetOraclePriceRecordChain()).Hash())
+		for i,pay := range tobepaid {
+			opr.SetWinningPreviousOPR(i+1,base58.Encode(pay.GetEntry(mstate.GetOraclePriceRecordChain()).Hash()))
+		}
 
 		//h := tobepaid[0].FactomDigitalID[:6]
 

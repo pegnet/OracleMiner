@@ -1,21 +1,21 @@
 package main
 
 import (
-	"encoding/binary"
 	"fmt"
 	"github.com/pegnet/OracleMiner"
 	"math/rand"
 	"time"
+	"github.com/FactomProject/btcutil/base58"
+	"encoding/json"
 )
 
 // GetOPR
 // To preserve our free access to the APIs we are using, don't actually build the OPR record quicker
 // than the speedlimit.  Faster calls just get the last OPR record
 func GetOPR(dbht int32, state *OracleMiner.MinerState) []byte {
-	binary.BigEndian.PutUint64(state.OPR.BlockReward[:], 5000*100000000)
 	state.OPR.GetOPRecord(state.Config)
 	state.OPR.Dbht = dbht
-	data, err := state.OPR.MarshalBinary()
+	data, err := json.Marshal(state.OPR)
 	if err != nil {
 		panic("Could not produce an oracle record")
 	}
@@ -60,11 +60,12 @@ func RunMiner(minerNumber int) {
 				// sleep for half a block time.
 				miner.Stop()
 				started = false
-				copy(mstate.OPR.Nonce[:], miner.BestNonce)
+				mstate.OPR.Nonce = base58.Encode(miner.BestNonce)
 				if mstate.OPR.ComputeDifficulty() > 0 {
-					OracleMiner.AddOpr(mstate, miner.BestNonce)
+					OracleMiner.AddOpr(mstate)
+					fmt.Println("miner ", mstate.MinerNumber, ": Solution")
 				} else {
-					fmt.Println("miner ", mstate.MinerNumber, ":  \"Man, didn't find a solution! Drat!\"")
+					fmt.Println("miner ", mstate.MinerNumber, ": No Solution")
 				}
 			}
 		case 0:
